@@ -125,9 +125,14 @@ function AnkiNote:get_pitch_accents(dict_result)
 					marking = idx < tonumber(downstep) and self.mark_accented or self.unmarked_char
 				end
 			end
+			-- when dealing with the downstep mora, we want the downstep to appear only on the last char of the mora
+			local is_downstep = marking == self.mark_downstep
 			logger.dbg("AnkiNote#get_pitch_accent(): determined marking for mora: ", idx, table.concat(mora), marking)
 			for _, ch in ipairs(mora) do
-				table.insert(pitch_visual, marking:format(ch))
+				table.insert(pitch_visual, (is_downstep and self.mark_accented or marking):format(ch))
+			end
+			if is_downstep then
+				pitch_visual[#pitch_visual] = self.mark_downstep:format(mora[#mora])
 			end
 		end
 		return self.pitch_pattern:format(table.concat(pitch_visual))
