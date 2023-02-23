@@ -104,7 +104,6 @@ end
 -- Create metadata string about the document the word came from.
 -- ]]
 function AnkiNote:create_metadata()
-	-- TODO obviously the page won't be the same every time, this can't be loaded once up front
 	local meta = self.ui.document._anki_metadata
 	return string.format("%s - %s (%d/%d)", meta.author, meta.title, meta:current_page(), meta.pages)
 end
@@ -297,5 +296,4 @@ function AnkiNote:new(opts)
 	return self
 end
 
--- TODO いっぱい食わし　pg 232/464
 return AnkiNote
