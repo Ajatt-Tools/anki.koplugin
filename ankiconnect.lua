@@ -225,7 +225,8 @@ function AnkiConnect:new(opts)
 	self.conf = opts.conf
 	-- reference to the button inserted on the dictionary popup window
 	self.btn = opts.btn
-	self.wifi_connected = NetworkMgr:isWifiOn()
+	-- NetworkMgr func is device dependent, assume it's true when not implemented.
+	self.wifi_connected = NetworkMgr.isWifiOn and NetworkMgr:isWifiOn() or true
 	-- contains notes which we could not sync yet
 	self.local_notes = {}
 	-- path of notes stored locally when WiFi isn't available
