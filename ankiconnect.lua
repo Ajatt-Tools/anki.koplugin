@@ -162,12 +162,7 @@ function AnkiConnect:add_note(popup_dict, custom_tags)
 
 	local can_sync, err = self:is_running()
 	if not can_sync then
-		if self.local_notes[popup_dict.lookupword] then
-			return self:show_popup("Cannot store duplicate note offline!", 3, true)
-		end
-		self.local_notes[popup_dict.lookupword] = true
-		table.insert(self.local_notes, note)
-		return self:show_popup(string.format("%s\nStored note offline", err), 3)
+		return self:store_offline(popup_dict, note, err)
 	end
 
 	if #self.local_notes > 0 then
@@ -181,7 +176,7 @@ function AnkiConnect:add_note(popup_dict, custom_tags)
 		})
 	end
 	if not self:set_forvo_audio(note) then
-		self:show_popup("Failed connecting to forvo! storing note offline.", 3)
+		return self:store_offline(popup_dict, note, "Failed connecting to forvo")
 	end
 
 	self:set_image_data(note)
@@ -190,6 +185,16 @@ function AnkiConnect:add_note(popup_dict, custom_tags)
 		return self:show_popup(string.format("Couldn't synchronize note: %s!", err), 3, true)
 	end
 	logger.info("note added succesfully: " .. result)
+end
+
+function AnkiConnect:store_offline(popup_dict, note, reason, show_always)
+	-- word stored as key as well so we can have a simple duplicate check for offline notes
+	if self.local_notes[popup_dict.lookupword] then
+		return self:show_popup("Cannot store duplicate note offline!", 3, true)
+	end
+	self.local_notes[popup_dict.lookupword] = true
+	table.insert(self.local_notes, note)
+	return self:show_popup(string.format("%s\nStored note offline", reason), 3, show_always or false)
 end
 
 function AnkiConnect:save_notes()
