@@ -78,11 +78,13 @@ local function get_pronunciation_url(word)
 	end
 	local play_params = string.match(forvo_page, "Play%((.-)%);")
 
+	local word_url = nil
 	if play_params then
 		local iter = string.gmatch(play_params, "'(.-)'")
 		local formats = { mp3 = iter(), ogg = iter() }
-		return true, string.format('https://audio00.forvo.com/%s/%s', "ogg", base64d(formats["ogg"]))
+		word_url = string.format('https://audio00.forvo.com/%s/%s', "ogg", base64d(formats["ogg"]))
 	end
+	return true, word_url
 end
 
 return {
