@@ -94,9 +94,7 @@ function AnkiNote:trim_context(context, is_preceding)
             table.insert(sentence, ch)
         end
     end
-    if #sentence > 0 then
-        table.insert(matches, table.concat(sentence))
-    end
+    table.insert(matches, table.concat(sentence))
     return matches[is_preceding and #matches or 1]
 end
 
