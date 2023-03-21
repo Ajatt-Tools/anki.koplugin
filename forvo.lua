@@ -7,6 +7,7 @@ Utils for downloading pronunciations from Forvo
 
 local http = require("socket.http")
 local socket = require("socket")
+local ltn12 = require("ltn12")
 
 local function GET(url)
 	local sink = {}
