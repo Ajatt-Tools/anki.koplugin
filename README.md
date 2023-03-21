@@ -20,3 +20,17 @@ KOReader plugin enabling Anki card generations for words looked up in the intern
    ```
 
    On other systems replace the destination path.
+3) To install the plugin on your e-reader, mount the device on your PC and locate the plugin folder
+   - connect the reader via USB
+   - use KOreader's built-in SSH server
+   
+   Enable the SSH server in the network tab on your device, it listens on port 2222 by default.
+   
+   The reader should inform you of the local IP address it's using as well.
+   
+   This snippet belows assumed you've downloaded the plugin already to the destination path from step 2.
+   ```sh
+   ssh -p 2222 root@<IP-address>:/mnt/onboard/.adds/koreader <local_folder>
+   # be careful to not add a trailing / to the source directory, this creates the folder on your device
+   rsync -Pruv --exclude=".git/" ~/.config/koreader/plugins/anki.koplugin <local_folder>/plugins/
+   ```
