@@ -85,7 +85,7 @@ function AnkiNote:trim_context(context, is_preceding)
         if chars_to_skip[ch] then
             -- skipping
         elseif delims_map[ch] then
-            if is_prev then
+            if not is_preceding then
                 table.insert(sentence, ch)
             end
             table.insert(matches, table.concat(sentence))
