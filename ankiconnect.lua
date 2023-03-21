@@ -5,12 +5,14 @@ local logger = require("logger")
 local json = require("rapidjson")
 local ltn12 = require("ltn12")
 local util = require("util")
+local Font = require("ui/font")
 local UIManager = require("ui/uimanager")
 local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
 local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
 local forvo = require("forvo")
+local u = require("lua_utils/utils")
 
 local AnkiConnect = {
     settings_dir = DataStorage:getSettingsDir(),
@@ -113,31 +115,39 @@ function AnkiConnect:sync_offline_notes()
         return self:show_popup(string.format("Synchronizing failed!\n%s", err), 3, true)
     end
 
-    local request, err
-    local synced, failed, errs = {}, {}, {}
+    local note_funcs = { -- inner tables contain function to call and function's return param which contains potential error
+        {self.set_image_data, 1},
+        {self.set_forvo_audio, 1},
+        {self.post_request, 2},
+    }
+    local synced, failed, errs = {}, {}, u.defaultdict(0)
     for _,note in ipairs(self.local_notes) do
-        self:set_image_data(note)
-        if not self:set_forvo_audio(note) then
-            err = "Could not connect to forvo."
-        else
-            request, err = self:post_request(note)
+        local func_err = nil
+        for _,func_t in ipairs(note_funcs) do
+            local func, err_idx = unpack(func_t)
+            func_err = table.remove({ func(self, note) }, err_idx)
+            if func_err then
+                errs[func_err] = errs[func_err] + 1
+                break
+            end
         end
-        table.insert(err and failed or synced, note)
-        if err and not errs[err] then
-            table.insert(errs, err)
-            errs[err] = true
-        end
+        table.insert(func_err and failed or synced, note)
     end
     self.local_notes = failed
     local sync_message_parts = {}
     if #synced > 0 then
-        table.insert(sync_message_parts, string.format("Finished synchronizing %d note(s).", #synced))
+        table.insert(sync_message_parts, ("Finished synchronizing %d note(s)."):format(#synced))
     end
     if #failed > 0 then
-        table.insert(sync_message_parts, string.format("Couldn't sync %d note(s)\nReason(s):\n - %s.", #failed, table.concat(errs, "\n - ")))
+        table.insert(sync_message_parts, ("%d note(s) failed to sync:"):format(#failed))
+        for error_msg, count in pairs(errs) do
+            table.insert(sync_message_parts, (" - %s (%d)"):format(error_msg, count))
+        end
         return UIManager:show(ConfirmBox:new {
-            text = table.concat(sync_message_parts, "\n") .. "\nDiscard failures?",
-            ok_text = "Discard",
+            text = table.concat(sync_message_parts, "\n"),
+            icon = "notice-warning",
+            font = Font:getFace("smallinfofont", 9),
+            ok_text = "Discard failures",
             cancel_text = "Keep",
             ok_callback = function()
                 self.local_notes = {}
