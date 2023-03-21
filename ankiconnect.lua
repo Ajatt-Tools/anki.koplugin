@@ -32,7 +32,8 @@ function AnkiConnect:is_running()
     return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
 end
 
-function AnkiConnect:post_request(json_payload)
+function AnkiConnect:post_request(note)
+    local json_payload = json.encode(note)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request
     local request = {
@@ -63,6 +64,9 @@ function AnkiConnect:get_request_error(http_return_code, request_data)
     end
 end
 
+--[[
+-- @return nil if nothing went wrong, else error message
+-- ]]
 function AnkiConnect:set_forvo_audio(note)
     if note.params.note.audio then
         return
@@ -70,7 +74,7 @@ function AnkiConnect:set_forvo_audio(note)
     local word = note.params.note.fields[self.conf.word_field:get_value()]
     local ok, forvo_url = forvo.get_pronunciation_url(word)
     if not ok then
-        return false
+        return "Could not connect to forvo."
     end
     if forvo_url then
         note.params.note.audio = {
@@ -79,7 +83,6 @@ function AnkiConnect:set_forvo_audio(note)
             fields = { self.conf.audio_field:get_value() }
         }
     end
-    return true
 end
 
 function AnkiConnect:set_image_data(note)
@@ -175,8 +178,9 @@ function AnkiConnect:add_note(popup_dict, custom_tags)
             end
         })
     end
-    if not self:set_forvo_audio(note) then
-        return self:store_offline(popup_dict, note, "Failed connecting to forvo")
+    local forvo_err = self:set_forvo_audio(note)
+    if forvo_err then
+        return self:store_offline(popup_dict, note, forvo_err)
     end
 
     self:set_image_data(note)
