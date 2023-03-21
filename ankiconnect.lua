@@ -120,7 +120,7 @@ function AnkiConnect:sync_offline_notes()
         if not self:set_forvo_audio(note) then
             err = "Could not connect to forvo."
         else
-            request, err = self:post_request(json.encode(note))
+            request, err = self:post_request(note)
         end
         table.insert(err and failed or synced, note)
         if err and not errs[err] then
@@ -184,9 +184,9 @@ function AnkiConnect:add_note(popup_dict, custom_tags)
     end
 
     self:set_image_data(note)
-    local result, err = self:post_request(json.encode(note))
-    if err then
-        return self:show_popup(string.format("Couldn't synchronize note: %s!", err), 3, true)
+    local result, request_err = self:post_request(note)
+    if request_err then
+        return self:show_popup(string.format("Couldn't synchronize note: %s!", request_err), 3, true)
     end
     logger.info("note added succesfully: " .. result)
 end
