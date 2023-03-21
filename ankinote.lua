@@ -275,8 +275,8 @@ function AnkiNote:create_note(popup_dict, tags)
         modelName = self.modelName:get_value(),
         fields = fields,
         options = {
-            allowDuplicate = false,
-            duplicateScope = "deck"
+            allowDuplicate = self.allow_dupes:get_value(),
+            duplicateScope = self.dupe_scope:get_value(),
         },
         tags = tags,
         -- this gets converted later, currently it's just a path to an image

@@ -186,10 +186,28 @@ local AnkiDefaults = {
     AnkiConfigOpt:new {
         id = "custom_tags",
         group = note_settings,
-        name = "Custom Note TAgs",
+        name = "Custom Note Tags",
         description = "Extra tags which can optionally be added when creating a Note",
         conf_type = "list",
         default = { "NEEDS_WORK" }
+    },
+
+    AnkiConfigOpt:new {
+        id = "allow_dupes",
+        group = note_settings,
+        name = "Allow Duplicates",
+        description = "Allow creation of duplicate notes",
+        conf_type = "bool",
+        default = false
+    },
+
+    AnkiConfigOpt:new {
+        id = "dupe_scope",
+        group = note_settings,
+        name = "Duplicate Scope",
+        description = "Anki Scope in which to look for duplicates",
+        conf_type = "text",
+        default = "deck",
     },
 }
 
