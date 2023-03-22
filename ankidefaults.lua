@@ -99,7 +99,7 @@ local AnkiDefaults = {
         description = "lua Pattern which returns the Kana reading of a dictionary word",
         conf_type = "multitable",
         default = {
-            ["JMdict Rev. 1.9"] = {"definition", ".*font color=\"green\">(.*)</font>.*"},
+            ["JMdict Rev. 1.9"] = {"definition", "<font color=\"green\">(.-)</font>"},
         }
     },
 

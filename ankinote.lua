@@ -107,7 +107,7 @@ function AnkiNote:create_metadata()
 end
 
 function AnkiNote:get_pitch_accents(dict_result)
-    local morae = self:split_morae(dict_result:get_word_in_kana())
+    local morae = self:split_morae(dict_result:get_kana_words()[1])
 
     local function _convert(downstep)
         local pitch_visual = {}
@@ -226,7 +226,8 @@ function AnkiNote:create_note(popup_dict, tags)
         end
     end
     local note_needs_context = with_context()
-    local word = popup_wrapper:get_word_in_kanji()[1] or popup_wrapper:get_word_in_kana() or popup_dict.word
+    -- TODO pick the kanji representation which matches the one we looked up
+    local word = popup_wrapper:get_kanji_words()[1] or popup_wrapper:get_kana_words()[1] or popup_dict.word
     local fields = {
         [self.context_field:get_value()] = note_needs_context and self:get_word_context(popup_dict.word .. trim) or popup_dict.word,
         [self.word_field:get_value()] = word,
@@ -242,7 +243,7 @@ function AnkiNote:create_note(popup_dict, tags)
         -- e.g.: 罵る vs 罵り -> noun vs verb -> we only add defs for the one we selected
         -- the info will be mostly the same, and the pitch accent might differ between noun and verb form
         -- TODO a dict entry can have multiple kana defs!
-        if popup_wrapper:get_word_in_kana() == result:get_word_in_kana() then
+        if popup_wrapper:get_kana_words():contains_any(result:get_kana_words()) then
             logger.info(string.format("AnkiNote#create_note(): handling result: %s", result:as_string()))
             local is_selected = idx == popup_dict.dict_index
             local field = (is_selected or self.save_all_override) and self.def_field:get_value() or self.dict_field_map:get_value()[result.dict]
@@ -259,7 +260,7 @@ function AnkiNote:create_note(popup_dict, tags)
             end
         else
             local skip_msg = "Skipping %s dict entry: kana word '%s' ~= selected dict word '%s'"
-            logger.info(skip_msg:format(result.dict, result:get_word_in_kana(), popup_wrapper:get_word_in_kana()))
+            logger.info(skip_msg:format(result.dict, result:get_kana_words(), popup_wrapper:get_kana_words()))
         end
     end
     for field, dicts in pairs(field_dict_map) do

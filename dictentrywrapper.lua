@@ -1,4 +1,5 @@
 local util = require("util")
+local List = require("lua_utils.list")
 -- utility which wraps a dictionary sub-entry (the popup shown when looking up a word)
 -- with some extra functionality which isn't there by default
 DictEntryWrapper = {
@@ -10,6 +11,11 @@ DictEntryWrapper = {
     pitch_downstep_pattern = "(%[([0-9])%])",
 }
 
+local function get_first_line(linestring)
+    local start_idx = linestring:find('\n', 1, true)
+    return start_idx and linestring:sub(1, start_idx + 1) or linestring
+end
+
 function DictEntryWrapper:new(opts)
     self.conf = opts.conf
 
@@ -19,17 +25,17 @@ function DictEntryWrapper:new(opts)
     return setmetatable({ dictionary = opts.dict }, { __index = function(table, k) return index(table, k) end })
 end
 
-function DictEntryWrapper:get_word_in_kana()
+function DictEntryWrapper:get_kana_words()
     local dictionary_field, kana_pattern = unpack(self.conf.kana_pattern:get_value()[self.dictionary.dict] or {})
     if dictionary_field then
-        return self.dictionary[dictionary_field]:match(kana_pattern)
+        return List:from_iter(self.dictionary[dictionary_field]:gmatch(kana_pattern))
     end
     -- if no custom config was present, we assume the kana is present in the 'word' field
     -- if the pattern doesn't match, return the plain word, chances are it's already in kana
-    return self.dictionary.word:match(self.kana_word_pattern) or self.dictionary.word
+    return List:new({ self.dictionary.word:match(self.kana_word_pattern) or self.dictionary.word })
 end
 
-function DictEntryWrapper:get_word_in_kanji()
+function DictEntryWrapper:get_kanji_words()
     local kanji_match_pattern = self.conf.kanji_pattern:get_value()[self.dictionary.dict] or self.kanji_word_pattern
     local kanji_entries_str = self.dictionary.word:match(kanji_match_pattern)
     local brackets = { ['('] = 0, [')'] = 0, ['（'] = 0, ['）'] = 0 }
@@ -50,19 +56,17 @@ function DictEntryWrapper:get_word_in_kanji()
     if #current > 0 then
         table.insert(kanji_entries, table.concat(current))
     end
-    return kanji_entries
+    return List:new(kanji_entries)
 end
 
 function DictEntryWrapper:get_pitch_downsteps()
     -- only look for pitch pattern in first line of defition ( TODO this could be configurable )
-    local start_idx = self.dictionary.definition:find('\n', 1, true) -- plain lookup for newline
-    local def = start_idx and self.dictionary.definition:sub(1, start_idx + 1) or self.dictionary.definition
-    return string.gmatch(def, self.pitch_downstep_pattern)
+    return string.gmatch(get_first_line(self.dictionary.definition), self.pitch_downstep_pattern)
 end
 
 function DictEntryWrapper:as_string()
-    fmt_string = "DictEntryWrapper: (%s) word: %s, kana: %s, kanji: %s"
-    return fmt_string:format(self.dictionary.dict, self.dictionary.word, self:get_word_in_kana(), table.concat(self:get_word_in_kanji(), " | "))
+    local fmt_string = "DictEntryWrapper: (%s) word: %s, kana: %s, kanji: %s"
+    return fmt_string:format(self.dictionary.dict, self.dictionary.word, self:get_kana_words(), self:get_kanji_words())
 end
 
 return DictEntryWrapper
