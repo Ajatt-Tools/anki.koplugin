@@ -35,16 +35,30 @@ end
 -- Convert a table of dictionaries to a single HTML <div> tag
 -- ]]
 function AnkiNote:convert_dict_to_HTML(dictionaries)
+    local custom_def_converter = function(definition, converter)
+        if not converter then
+            return definition
+        end
+        -- TODO implement word_conv
+        local def_conv, word_conv = converter.definition, converter.word
+        if def_conv then
+            if type(def_conv) == "table" then
+                for _,pattern_t in ipairs(def_conv) do
+                    local pattern, replacement, count = unpack(pattern_t)
+                    definition = definition:gsub(pattern, replacement or '', count)
+                end
+            elseif type(def_conv) == "function" then
+                definition = def_conv(definition)
+            end
+        end
+        return definition
+    end
     return self:convert_to_HTML {
         entries = dictionaries,
         build = function(entry, entry_template)
             -- use user provided patterns to clean up dictionary definitions
-            local def, patterns = entry.definition, self.dict_edit:get_value()[entry.dict]
-            if patterns and patterns.definition then
-                for _,pattern in ipairs(patterns.definition) do
-                    def = string.gsub(def, pattern[1], pattern[2] or '', pattern[3] or nil)
-                end
-            end
+            local def, converter = entry.definition, self.dict_edit:get_value()[entry.dict]
+            def = custom_def_converter(def, converter)
             if entry.is_html then -- try adding dict name to opening div tag (if present)
                 -- gsub wrapped in () so it only gives us the first result, and discards the index (2nd arg.)
                 return (def:gsub("(<div)( ?)", string.format("%%1 dict=\"%s\"%%2", entry.dict), 1))
@@ -57,7 +71,7 @@ end
 function AnkiNote:convert_pitch_to_HTML(accents, fields)
     local converter = nil
     if #accents == 0 then
-        converter = function(field) return nil end
+        converter = function(_) return nil end
     elseif #accents == 1 then
         converter = function(field) return accents[1][field] end
     else
