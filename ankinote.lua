@@ -35,21 +35,17 @@ end
 -- Convert a table of dictionaries to a single HTML <div> tag
 -- ]]
 function AnkiNote:convert_dict_to_HTML(dictionaries)
-    local custom_def_converter = function(definition, converter)
+    local run_user_conversions = function(definition, converter)
         if not converter then
             return definition
         end
-        -- TODO implement word_conv
-        local def_conv, word_conv = converter.definition, converter.word
-        if def_conv then
-            if type(def_conv) == "table" then
-                for _,pattern_t in ipairs(def_conv) do
-                    local pattern, replacement, count = unpack(pattern_t)
-                    definition = definition:gsub(pattern, replacement or '', count)
-                end
-            elseif type(def_conv) == "function" then
-                definition = def_conv(definition)
+        if type(converter) == "table" then
+            for _,pattern_t in ipairs(converter) do
+                local pattern, replacement, count = unpack(pattern_t)
+                definition = definition:gsub(pattern, replacement or '', count)
             end
+        elseif type(converter) == "function" then
+            definition = converter(definition)
         end
         return definition
     end
@@ -58,7 +54,7 @@ function AnkiNote:convert_dict_to_HTML(dictionaries)
         build = function(entry, entry_template)
             -- use user provided patterns to clean up dictionary definitions
             local def, converter = entry.definition, self.dict_edit:get_value()[entry.dict]
-            def = custom_def_converter(def, converter)
+            def = run_user_conversions(def, converter)
             if entry.is_html then -- try adding dict name to opening div tag (if present)
                 -- gsub wrapped in () so it only gives us the first result, and discards the index (2nd arg.)
                 return (def:gsub("(<div)( ?)", string.format("%%1 dict=\"%s\"%%2", entry.dict), 1))

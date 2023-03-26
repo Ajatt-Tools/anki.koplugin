@@ -68,27 +68,25 @@ local AnkiDefaults = {
         id = "dict_edit",
         group = dictionary_settings,
         name = "Edit dictionary entry",
-        description = [[Edit dictionary contents with a lua Pattern.
-        The word or definition can be edited before use.
-        For either field, a list of { pattern, replacement, count } tables can be given.
-        If no replacement is present, the pattern will be removed.
+        description = [[Edit dictionary definition contents with a lua Pattern.
+        For each dictionary name stored in the table, a table or a function can be provided:
+            - table: expected entry format { pattern, [replacement], [count] }. Multiple entries can be provided.
+                If no replacement is provided, the matched pattern is removed.
+                If no count is provided, all matches are replaced.
+            - function: expected signature `function(definition) return modified_definition end`
         ]],
         conf_type = "multitable",
         default = {
             ["スーパー大辞林　3.0"] = {
-                ["word"] = {},
-                ["definition"] = {
-                    { '%[[0-9]%]' },
-                    { '%[[0-9]%]:%[0-9%]' },
-                }
+                -- replace pitch patterns occuring in definition
+                { '%[[0-9]%]' },
+                { '%[[0-9]%]:%[0-9%]' },
             },
             ["新明解国語辞典　第五版"] = {
-                ["word"] = {},
-                ["definition"] = {
-                    { '%[[0-9]%]' },
-                    { '%[[0-9]%]:%[0-9%]' },
-                }
-            }
+                -- replace pitch patterns occuring in definition
+                { '%[[0-9]%]' },
+                { '%[[0-9]%]:%[0-9%]' },
+            },
         }
     },
 
