@@ -9,6 +9,7 @@ local Font = require("ui/font")
 local UIManager = require("ui/uimanager")
 local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
+local KeyValuePage = require("ui/widget/keyvaluepage")
 local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
 local forvo = require("forvo")
@@ -232,6 +233,24 @@ function AnkiConnect:load_notes()
     end
     logger.dbg(string.format("AnkiConnect#load_notes(): Loading %d notes from disk.", #self.local_notes))
     os.remove(self.notes_filename)
+end
+
+function AnkiConnect:display_preview(popup_dict)
+    local dict = self.anki_note:extend_dict(popup_dict.results[popup_dict.dict_index])
+    local kana, kanji = dict:get_kana_words(), dict:get_kanji_words()
+    local Foo = KeyValuePage:new{
+        lang = "ja",
+        title = "Info extracted from dictionary entry",
+        kv_pairs = {
+            { "Kana", kana:size() > 0 and kana or "N/A", callback = function()
+                self:show_popup(("Uses the `kana_pattern` config option.\nDictionary field: %s\nPattern: %s"):format(dict.kana_dict_field, dict.kana_pattern), 5, true) end },
+            {"Kanji", kanji:size() > 0 and kanji or "N/A", callback = function()
+                self:show_popup(("Uses the `kanji_pattern` config option.\nDictionary field: %s\nPattern: %s"):format(dict.kanji_dict_field, dict.kanji_pattern), 5, true) end },
+            -- single or more "-" will generate a solid line
+            "----------------------------",
+        },
+    }
+    UIManager:show(Foo)
 end
 
 -- [[

@@ -213,7 +213,7 @@ function AnkiNote:create_note(popup_dict, tags)
     -- e.g. 垣間見える -> don't just select 垣間見
     -- not sure this happens always but surely sometimes
     local popup_wrapper = self:extend_dict(popup_dict.results[popup_dict.dict_index])
-    logger.info(string.format("AnkiNote#create_note(): add_note (%d results), %s", #popup_dict.results, popup_wrapper:as_string()))
+    logger.info(string.format("AnkiNote#create_note(): (%d results), %s", #popup_dict.results, popup_wrapper:as_string()))
 
     -- context is only relevant if we looked up a word on the page.
     -- When looking up a word in a dictionary entry, this context is not relevant
@@ -252,7 +252,6 @@ function AnkiNote:create_note(popup_dict, tags)
         -- don't add definitions where the dict word does not match the selected dict's word
         -- e.g.: 罵る vs 罵り -> noun vs verb -> we only add defs for the one we selected
         -- the info will be mostly the same, and the pitch accent might differ between noun and verb form
-        -- TODO a dict entry can have multiple kana defs!
         if popup_wrapper:get_kana_words():contains_any(result:get_kana_words()) then
             logger.info(string.format("AnkiNote#create_note(): handling result: %s", result:as_string()))
             local is_selected = idx == popup_dict.dict_index

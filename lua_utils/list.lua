@@ -23,6 +23,8 @@ function List:get()
     return rawget(self, "_data")
 end
 
+function List:size() return #self:get() end
+
 function List:contains(item)
     return self:get()[item] ~= nil
 end

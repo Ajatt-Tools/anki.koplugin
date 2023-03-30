@@ -17,6 +17,7 @@ function AnkiWidget:show_config_widget(popup_dict)
     local sync_message = string.format(string.format("Sync (%d) offline note(s)", note_count))
     self.config_widget = ButtonDialog:new {
         buttons = {
+            {{ text = "Show parsed dictionary data", id = "preview", callback = function() self.anki_connect:display_preview(popup_dict) end }},
             {{ text = sync_message, id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
             {{ text = "Add with custom tags", id = "add_custom", callback = function() self.anki_connect:add_note(popup_dict, self.user_config.custom_tags:get_value()) end }},
         }

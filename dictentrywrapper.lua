@@ -22,11 +22,20 @@ function DictEntryWrapper:new(opts)
     local index = function(table, k)
         return rawget(table, k) or rawget(self, k) or rawget(table.dictionary, k)
     end
-    return setmetatable({ dictionary = opts.dict }, { __index = function(table, k) return index(table, k) end })
+    local kana_dictionary_field, kana_pattern = unpack(self.conf.kana_pattern:get_value()[opts.dict.dict] or {})
+    local kanji_dictionary_field, kanji_pattern  = unpack(self.conf.kanji_pattern:get_value()[opts.dict.dict] or {})
+    local data = {
+        dictionary = opts.dict,
+        kana_pattern = kana_pattern or self.kana_word_pattern,
+        kana_dict_field = kana_dictionary_field or "word",
+        kanji_pattern = kanji_pattern or self.kanji_word_pattern,
+        kanji_dict_field = kanji_dictionary_field or "word",
+    }
+    return setmetatable(data, { __index = function(table, k) return index(table, k) end })
 end
 
 function DictEntryWrapper:get_kana_words()
-    local dictionary_field, kana_pattern = unpack(self.conf.kana_pattern:get_value()[self.dictionary.dict] or {})
+    local dictionary_field, kana_pattern = self.kana_dict_field, self.kana_pattern
     if dictionary_field then
         return List:from_iter(self.dictionary[dictionary_field]:gmatch(kana_pattern))
     end
@@ -36,8 +45,7 @@ function DictEntryWrapper:get_kana_words()
 end
 
 function DictEntryWrapper:get_kanji_words()
-    local kanji_match_pattern = self.conf.kanji_pattern:get_value()[self.dictionary.dict] or self.kanji_word_pattern
-    local kanji_entries_str = self.dictionary.word:match(kanji_match_pattern)
+    local kanji_entries_str = self.dictionary[self.kanji_dict_field]:match(self.kanji_pattern)
     local brackets = { ['('] = 0, [')'] = 0, ['（'] = 0, ['）'] = 0 }
     -- word entries often look like this: ある【有る・在る】
     -- the kanji_match_pattern will give us: 有る・在る
