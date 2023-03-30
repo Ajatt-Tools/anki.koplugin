@@ -1,18 +1,15 @@
 local _ = require("gettext")
-local logger = require("logger")
 local UIManager = require("ui/uimanager")
 local ButtonDialog = require("ui/widget/buttondialog")
 local DictQuickLookup = require("ui/widget/dictquicklookup")
-local InfoMessage = require("ui/widget/infomessage")
-local InputDialog = require("ui/widget/inputdialog")
-local MultiInputDialog = require("ui/widget/multiinputdialog")
 local Widget = require("ui/widget/widget")
 local util = require("util")
+local MenuBuilder = require("menubuilder")
 
 local AnkiWidget = Widget:extend {
     -- this contains all the user configurable options
     -- to access them: conf.xxx:get_value()
-    conf = require("ankidefaults"),
+    user_config = require("configwrapper")
 }
 
 function AnkiWidget:show_config_widget(popup_dict)
@@ -21,7 +18,7 @@ function AnkiWidget:show_config_widget(popup_dict)
     self.config_widget = ButtonDialog:new {
         buttons = {
             {{ text = sync_message, id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
-            {{ text = "Add with custom tags", id = "add_custom", callback = function() self.anki_connect:add_note(popup_dict, self.conf.custom_tags:get_value()) end }},
+            {{ text = "Add with custom tags", id = "add_custom", callback = function() self.anki_connect:add_note(popup_dict, self.user_config.custom_tags:get_value()) end }},
         }
     }
     UIManager:show(self.config_widget)
@@ -35,82 +32,14 @@ end
 -- items to the dictionary menu
 -- ]]
 function AnkiWidget:addToMainMenu(menu_items)
-    local settings = {}
-    for _, opt in ipairs(self.conf) do
-        logger.info("AnkiWidget#addToMainMenu(): ", opt.id)
-        settings[#settings+1] = {
-            text = opt.name,
-            keep_menu_open = true,
-            callback = function()
-                if opt.conf_type == "text" then
-                    self:build_single_dialog(opt)
-                elseif opt.conf_type == "table" then
-                    self:build_multi_dialog(opt)
-                else
-                    UIManager:show(InfoMessage:new { text = string.format("Configuration of type %s can only be edited on PC!", opt.conf_type), timeout = 3 })
-                end
-            end
-        }
-    end
-    menu_items.anki_settings = {
-        text = "Anki Settings",
-        sub_item_table = settings,
-    }
-
-end
-
-function AnkiWidget:build_single_dialog(opt)
-    local input_dialog -- saved first so we can reference it in the callbacks
-    input_dialog = InputDialog:new {
-        title = opt.name,
-        input = opt:get_value(),
-        input_hint = opt.name,
-        description = opt.description,
-        buttons = {{
-            { text = "Cancel",  id = "cancel",      callback = function() UIManager:close(input_dialog) end },
-            { text = "Save",    id = "save",        callback = function()
-                opt:update_value(input_dialog:getInputText())
-                UIManager:close(input_dialog)
-            end },
-        }},
-    }
-    UIManager:show(input_dialog)
-    input_dialog:onShowKeyboard()
-end
-
-function AnkiWidget:build_multi_dialog(opt)
-    local fields = {}
-    for k,v in pairs(opt:get_value()) do
-        table.insert(fields, { description = k, text = v })
-    end
-
-    local multi_dialog
-    multi_dialog = MultiInputDialog:new {
-        title = opt.name,
-        description = opt.description,
-        fields = fields,
-        buttons = {{
-            { text = "Cancel",  id = "cancel",      callback = function() UIManager:close(multi_dialog) end },
-            { text = "Save",    id = "save",        callback = function()
-                local new = {}
-                for idx,v in ipairs(multi_dialog:getFields()) do
-                    new[fields[idx].description] = v
-                end
-                opt:update_value(new)
-                UIManager:close(multi_dialog)
-            end},
-            }
-        },
-    }
-    UIManager:show(multi_dialog)
-    multi_dialog:onShowKeyboard()
+    menu_items.anki_settings = { text = "Anki Settings", sub_item_table = MenuBuilder:convert_user_config(self.user_config) }
 end
 
 -- This function is called automatically for all tables extending from Widget
 function AnkiWidget:init()
     -- this contains all the logic for creating anki cards
     self.anki_connect = require("ankiconnect"):new {
-        conf = self.conf,
+        conf = self.user_config,
         btn = self.add_to_anki_btn,
         ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
     }
@@ -166,12 +95,12 @@ function AnkiWidget:handle_events()
     -- these all return false so that the event goes up the chain, other widgets might wanna react to these events
     self.onCloseWidget = function()
         self.anki_connect:save_notes()
-        self.conf:save()
+        self.user_config:save()
     end
 
     self.onSuspend = function()
         self.anki_connect:save_notes()
-        self.conf:save()
+        self.user_config:save()
     end
 
     self.onResume = function()
