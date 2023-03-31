@@ -48,8 +48,6 @@ local Config = {
     -- The field name where the pitch accent string will be sent to. This format is hardcoded currently.
     p_a_field = "VocabPitchPattern",
 
-    -- This pitch accent info needs to be extracted from the dictionaries where it occurs, this is done with a Lua pattern.
-
     -- The plugin can query Forvo for audio of the word you just looked up.
     -- The field name where the audio will be sent to.
     audio_field = "VocabAudio",
@@ -112,6 +110,7 @@ local Config = {
                 return definition
             end
             local tags, tags_txt = {}, first_line:match("〘(.-)〙")
+            if not tags_txt then return definition end
             local tag_fmt = '<small><span style="color:white;background:green;padding-left:3px;padding-right:3px;border-radius:0.5ex;">%s</span></small>'
             for tag in require("util").gsplit(tags_txt, '・') do
                 table.insert(tags, tag_fmt:format(tag))

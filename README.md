@@ -46,7 +46,7 @@ When pressed, the add-on will try generating a card, using the selected dictiona
 
 ### Features
 Based on the word selected and the dictionary popup, some extra info can be sent to specific fields on an anki note.
-The fields used are stored in `config.lua`. Each key mentioned below (e.g. `word_field`, `def_field`) are defined in this file, and refer to the actual name of the field the user's choice.
+The fields used are stored in `config.lua`. Each key mentioned below (e.g. `word_field`, `def_field`) is defined in this file.
 
 #### Sentence context
 The plugin will parse the full sentence which the lookup word occurred in, this text can be sent to the `context_field`
