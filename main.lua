@@ -33,7 +33,11 @@ end
 -- items to the dictionary menu
 -- ]]
 function AnkiWidget:addToMainMenu(menu_items)
-    menu_items.anki_settings = { text = "Anki Settings", sub_item_table = MenuBuilder:convert_user_config(self.user_config) }
+    local builder = MenuBuilder:new{
+        user_config = self.user_config,
+        ui = self.ui
+    }
+    menu_items.anki_settings = { text = "Anki Settings", sub_item_table = builder:build() }
 end
 
 -- This function is called automatically for all tables extending from Widget

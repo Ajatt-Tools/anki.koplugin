@@ -1,8 +1,8 @@
 local UIManager = require("ui/uimanager")
-local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
+local List = require("lua_utils.list")
 
 local general_settings = { "generic_settings", "General Settings" }
 local note_settings = { "note_settings", "Anki Note Settings" }
@@ -118,10 +118,13 @@ local menu_entries = {
         name = "Dictionary Map",
         description = "List of key/value pairs linking a dictionary with a field on the note type",
         conf_type = "map",
+        default_values = function(menubuilder) return menubuilder.ui.dictionary.enabled_dict_names end,
+        new_entry_value = "Note field to send the definition to",
     },
 }
 for i,x in ipairs(menu_entries) do menu_entries[x.id] = i end
 
+local MenuBuilder = {}
 local MenuConfigOpt = {
     user_conf = nil,     -- the underlying ConfigOpt which this menu option configures
     menu_entry = nil,    -- pretty name for display purposes
@@ -132,24 +135,35 @@ function MenuConfigOpt:new(o)
     local new_ = { idx = o.idx } -- idx is used to sort the entries so they are displayed in a consistent order
     for k,v in pairs(o.user_conf) do new_[k] = v end
     for k,v in pairs(o.menu_entry) do new_[k] = v end
-    return setmetatable(new_, { __index = function(t, k) return rawget(t, k) or self[k] or o.user_conf[k] end })
+    local function index(t, k)
+        return rawget(t, k) or self[k]
+            or o.user_conf[k] -- necessary to be able to call opt:get_value()
+            or MenuBuilder[k] -- necessary to get access to ui (passed in via menubuilder)
+    end
+    return setmetatable(new_, { __index = index })
+end
+
+local function build_single_dialog(title, input, hint, description, callback)
+    local input_dialog -- saved first so we can reference it in the callbacks
+    input_dialog = InputDialog:new {
+        title = title,
+        input = input,
+        input_hint = hint,
+        description = description,
+        buttons = {{
+            { text = "Cancel",  id = "cancel",      callback = function() UIManager:close(input_dialog) end },
+            { text = "Save",    id = "save",        callback = function() callback(input_dialog) end },
+        }},
+    }
+    return input_dialog
 end
 
 function MenuConfigOpt:build_single_dialog()
-    local input_dialog -- saved first so we can reference it in the callbacks
-    input_dialog = InputDialog:new {
-        title = self.name,
-        input = self:get_value(),
-        input_hint = self.name,
-        description = self.description,
-        buttons = {{
-            { text = "Cancel",  id = "cancel",      callback = function() UIManager:close(input_dialog) end },
-            { text = "Save",    id = "save",        callback = function()
-                self:update_value(input_dialog:getInputText())
-                UIManager:close(input_dialog)
-            end },
-        }},
-    }
+    local callback = function(dialog)
+        self:update_value(dialog:getInputText())
+        UIManager:close(dialog)
+    end
+    local input_dialog = build_single_dialog(self.name, self:get_value(), self.name, self.description, callback)
     UIManager:show(input_dialog)
     input_dialog:onShowKeyboard()
 end
@@ -183,34 +197,89 @@ function MenuConfigOpt:build_multi_dialog()
 end
 
 function MenuConfigOpt:build_list_dialog()
-    local input_dialog
-    input_dialog = InputDialog:new {
-        title = self.name,
-        -- items in list are concatenated, separated by comma's
-        input = table.concat(self:get_value(), ","),
-        input_hint = self.name,
-        description = self.description .. "\nMultiple tags can be given, separated by commas.",
-        buttons = {{
-            { text = "Cancel",  id = "cancel",      callback = function() UIManager:close(input_dialog) end },
-            { text = "Save",    id = "save",        callback = function()
-                local new_tags = {}
-                for tag in util.gsplit(input_dialog:getInputText(), ",") do
-                    table.insert(new_tags, tag)
-                end
-                self:update_value(new_tags)
-                UIManager:close(input_dialog)
-            end },
-        }},
-    }
+    local callback = function(dialog)
+        local new_tags = {}
+        for tag in util.gsplit(dialog:getInputText(), ",") do
+            table.insert(new_tags, tag)
+        end
+        self:update_value(new_tags)
+        UIManager:close(dialog)
+    end
+    local description = self.description.."\nMultiple values can be listed, separated by a comma."
+    local input_dialog = build_single_dialog(self.name,table.concat(self:get_value(), ","), self.name, description, callback)
     UIManager:show(input_dialog)
     input_dialog:onShowKeyboard()
 end
 
-local MenuBuilder = {}
+function MenuConfigOpt:build_map_dialog()
+    local function is_enabled(k)
+        return self:get_value()[k] ~= nil
+    end
+    -- called when enabling or updating a value in the map
+    local function update_map_entry(entry_key)
+        local new = self:get_value()
+        local cb = function(dialog)
+            new[entry_key] = dialog:getInputText()
+            self:update_value(new)
+            UIManager:close(dialog)
+        end
+        local input_dialog = build_single_dialog(entry_key, new[entry_key] or "", nil,self.new_entry_value, cb)
+        UIManager:show(input_dialog)
+        input_dialog:onShowKeyboard()
+    end
 
-function MenuBuilder:convert_user_config(user_config)
+    local sub_item_table = {}
+    local values = self.default_values
+    if type(values) == "function" then
+        values = values(self)
+    end
+    for _,entry_key in ipairs(values) do
+        local activate_menu = {
+            text = "Activate",
+            keep_menu_open = true,
+            checked_func = function() return is_enabled(entry_key) end,
+            callback = function()
+                local new = self:get_value()
+                if is_enabled(entry_key) then
+                    new[entry_key] = nil
+                    self:update_value(new)
+                else
+                    -- this is hack to make the menu toggle update
+                    new[entry_key] = ""
+                    self:update_value(new)
+                    update_map_entry(entry_key)
+                end
+            end
+        }
+        local edit_menu = {
+            text = "Edit",
+            keep_menu_open = true,
+            enabled_func = function() return is_enabled(entry_key) end,
+            callback = function() return update_map_entry(entry_key) end,
+        }
+        local menu_item = {
+            text = entry_key,
+            checked_func = function() return is_enabled(entry_key) end,
+            keep_menu_open = true,
+            sub_item_table = {
+                activate_menu,
+                edit_menu,
+            }
+        }
+        table.insert(sub_item_table, menu_item)
+    end
+    return sub_item_table
+end
+
+function MenuBuilder:new(opts)
+    self.user_config = opts.user_config
+    self.ui = opts.ui -- needed to get the enabled dictionaries
+    return self
+end
+
+function MenuBuilder:build()
     local menu_options = {}
-    for id, user_conf in pairs(user_config) do
+    for id, user_conf in pairs(self.user_config) do
         local idx = menu_entries[id]
         local entry = menu_entries[idx]
         if entry then
@@ -221,29 +290,39 @@ function MenuBuilder:convert_user_config(user_config)
 
     -- contains data as expected to be passed along to main config widget
     local sub_item_table = {}
-    for i, opt in ipairs(menu_options) do
-        local sub_item_entry = {
-            text = opt.name,
-            keep_menu_open = true,
-            separator = i < #menu_options and opt.group[1] ~= menu_options[i+1].group[1]
-        }
-        if opt.conf_type == "text" then
-            sub_item_entry['callback'] = function() return opt:build_single_dialog() end
-        elseif opt.conf_type == "table" then
-            sub_item_entry['callback'] = function() return opt:build_multi_dialog() end
-        elseif opt.conf_type == "bool" then
-            sub_item_entry['checked_func'] = function() return opt:get_value() == true end
-            sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value()) end
-        elseif opt.conf_type == "list" then
-            sub_item_entry['callback'] = function() return opt:build_list_dialog() end
-        else -- TODO multitable, list
-            sub_item_entry['callback'] = function()
-                UIManager:show(InfoMessage:new{ text = ("Configuration of type %s can only be edited on PC!"):format(opt.conf_type), timeout = 3 })
-            end
+    local grouping_func = function(x) return x.group[2] end
+    local group_order = { ["General Settings"] = 1, ["Anki Note Settings"] = 2, ["Dictionary Settings"] = 3 }
+    for group, group_entries in pairs(List:new(menu_options):group_by(grouping_func):get()) do
+        local menu_group = {}
+        for _,opt in ipairs(group_entries) do
+            table.insert(menu_group, self:convert_opt(opt))
         end
-        table.insert(sub_item_table, sub_item_entry)
+        table.insert(sub_item_table, { text = group, sub_item_table = menu_group })
     end
+    table.sort(sub_item_table, function(a,b) return group_order[a.text] < group_order[b.text] end)
     return sub_item_table
+end
+
+function MenuBuilder:convert_opt(opt)
+    local sub_item_entry = {
+        text = opt.name,
+        keep_menu_open = true,
+    }
+    if opt.conf_type == "text" then
+        sub_item_entry['callback'] = function() return opt:build_single_dialog() end
+    elseif opt.conf_type == "table" then
+        sub_item_entry['callback'] = function() return opt:build_multi_dialog() end
+    elseif opt.conf_type == "bool" then
+        sub_item_entry['checked_func'] = function() return opt:get_value() == true end
+        sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value()) end
+    elseif opt.conf_type == "list" then
+        sub_item_entry['callback'] = function() return opt:build_list_dialog() end
+    elseif opt.conf_type == "map" then
+        sub_item_entry['sub_item_table'] = opt:build_map_dialog()
+    else -- TODO multitable
+        sub_item_entry['enabled_func'] = function() return false end
+    end
+    return sub_item_entry
 end
 
 return MenuBuilder

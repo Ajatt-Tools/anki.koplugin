@@ -36,4 +36,13 @@ function List:contains_any(other)
     return false
 end
 
+function List:group_by(grouping_func)
+    local grouped_mt = { __index = function(t, k) return rawget(t,k) or rawset(t, k, {})[k] end }
+    local grouped = setmetatable({}, grouped_mt)
+    for _,x in ipairs(self:get()) do
+        table.insert(grouped[grouping_func(x)], x)
+    end
+    return self:new(grouped)
+end
+
 return List
