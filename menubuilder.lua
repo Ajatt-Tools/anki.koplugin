@@ -47,7 +47,7 @@ local menu_entries = {
         id = "custom_tags",
         group = general_settings,
         name = "Custom Note Tags",
-        description = "Extra tags which can optionally be added when creating a Note",
+        description = "Provide custom tags to be added to a note.",
         conf_type = "list",
     },
      {
