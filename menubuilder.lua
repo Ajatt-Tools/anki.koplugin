@@ -2,6 +2,7 @@ local UIManager = require("ui/uimanager")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
+local util = require("util")
 
 local general_settings = { "generic_settings", "General Settings" }
 local note_settings = { "note_settings", "Anki Note Settings" }
@@ -181,6 +182,30 @@ function MenuConfigOpt:build_multi_dialog()
     multi_dialog:onShowKeyboard()
 end
 
+function MenuConfigOpt:build_list_dialog()
+    local input_dialog
+    input_dialog = InputDialog:new {
+        title = self.name,
+        -- items in list are concatenated, separated by comma's
+        input = table.concat(self:get_value(), ","),
+        input_hint = self.name,
+        description = self.description .. "\nMultiple tags can be given, separated by commas.",
+        buttons = {{
+            { text = "Cancel",  id = "cancel",      callback = function() UIManager:close(input_dialog) end },
+            { text = "Save",    id = "save",        callback = function()
+                local new_tags = {}
+                for tag in util.gsplit(input_dialog:getInputText(), ",") do
+                    table.insert(new_tags, tag)
+                end
+                self:update_value(new_tags)
+                UIManager:close(input_dialog)
+            end },
+        }},
+    }
+    UIManager:show(input_dialog)
+    input_dialog:onShowKeyboard()
+end
+
 local MenuBuilder = {}
 
 function MenuBuilder:convert_user_config(user_config)
@@ -209,6 +234,8 @@ function MenuBuilder:convert_user_config(user_config)
         elseif opt.conf_type == "bool" then
             sub_item_entry['checked_func'] = function() return opt:get_value() == true end
             sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value()) end
+        elseif opt.conf_type == "list" then
+            sub_item_entry['callback'] = function() return opt:build_list_dialog() end
         else -- TODO multitable, list
             sub_item_entry['callback'] = function()
                 UIManager:show(InfoMessage:new{ text = ("Configuration of type %s can only be edited on PC!"):format(opt.conf_type), timeout = 3 })
