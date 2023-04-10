@@ -103,7 +103,7 @@ local Config = {
             { '%[[0-9]%]:%[0-9%]' },
         },
         -- * function: function taking in the definition as an argument, and which should return the modified definition (see example below)
-        ["明鏡国語辞典　第一版"] = function(definition)
+        --[[ ["明鏡国語辞典　第一版"] = function(definition)
             local newline_idx = definition:find('\n', 0, true)
             local first_line = definition:sub(0, newline_idx or 0)
             if #first_line == 0 then
@@ -116,7 +116,7 @@ local Config = {
                 table.insert(tags, tag_fmt:format(tag))
             end
             return definition:sub(#first_line+1) .. "<br>" .. table.concat(tags, '<font color="red"> | </font>')
-        end,
+        end, --]]
     }
 }
 return Config
