@@ -35,13 +35,9 @@ function DictEntryWrapper:new(opts)
 end
 
 function DictEntryWrapper:get_kana_words()
-    local dictionary_field, kana_pattern = self.kana_dict_field, self.kana_pattern
-    if dictionary_field then
-        return List:from_iter(self.dictionary[dictionary_field]:gmatch(kana_pattern))
-    end
-    -- if no custom config was present, we assume the kana is present in the 'word' field
+    local entries = List:from_iter(self.dictionary[self.kana_dict_field]:gmatch(self.kana_pattern))
     -- if the pattern doesn't match, return the plain word, chances are it's already in kana
-    return List:new({ self.dictionary.word:match(self.kana_word_pattern) or self.dictionary.word })
+    return entries:is_empty() and List:new({self.dictionary.word}) or entries
 end
 
 function DictEntryWrapper:get_kanji_words()

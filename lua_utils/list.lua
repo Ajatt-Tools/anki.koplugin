@@ -25,6 +25,8 @@ end
 
 function List:size() return #self:get() end
 
+function List:is_empty() return self:size() == 0 end
+
 function List:contains(item)
     return self:get()[item] ~= nil
 end
