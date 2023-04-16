@@ -22,13 +22,13 @@ local function Set(data)
 end
 
 function AnkiNote:convert_to_HTML(opts)
-    local wrapper_template = opts.wrapper_template or "<div style=\"text-align: left;\"><ol>%s</ol></div>"
+    local wrapper_template = opts.wrapper_template or "<div class=\"%s\"><ol>%s</ol></div>"
     local entry_template = opts.entry_template or "<li dict=\"%s\">%s</li>"
     local list_items = {}
     for _,entry in ipairs(opts.entries) do
         table.insert(list_items, opts.build(entry, entry_template))
     end
-    return wrapper_template:format(table.concat(list_items))
+    return wrapper_template:format(opts.class, table.concat(list_items))
 end
 
 -- [[
@@ -51,6 +51,7 @@ function AnkiNote:convert_dict_to_HTML(dictionaries)
     end
     return self:convert_to_HTML {
         entries = dictionaries,
+        class = "definition",
         build = function(entry, entry_template)
             -- use user provided patterns to clean up dictionary definitions
             local def, converter = entry.definition, self.dict_edit:get_value()[entry.dict]
@@ -73,6 +74,7 @@ function AnkiNote:convert_pitch_to_HTML(accents, fields)
     else
         converter = function(field) return self:convert_to_HTML {
             entries = accents,
+            class = "pitch",
             build = function(accent) return string.format("<li>%s</li>", accent[field]) end
         }
         end
