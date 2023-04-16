@@ -103,7 +103,7 @@ function AnkiConnect:set_image_data(note)
         note.params.note.picture = {
             data = forvo.base64e(img_f:read("*a")),
             filename = filename,
-            fields = { self.conf.img_field:get_value() }
+            fields = { self.conf.image_field:get_value() }
         }
         logger.info(string.format("added %d bytes of base64 encoded data", #note.params.note.picture.data))
         os.remove(img_path)
