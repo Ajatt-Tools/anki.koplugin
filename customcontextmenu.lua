@@ -70,12 +70,21 @@ function CustomContextMenu:init()
     local btn_width = math.floor( ((inner_width+frame_padding) - nb_span_units * button_span_unit_width) * (1/6))
 
     -- create some helper functions
+    local update = function(opts)
+        self.prev_c_cnt = opts.prev_c or self.prev_c_cnt
+        self.prev_s_cnt = opts.prev_s or self.prev_s_cnt
+        self.next_c_cnt = opts.next_c or self.next_c_cnt
+        self.next_s_cnt = opts.next_s or self.next_s_cnt
+        self:update_context()
+    end
     local can_prepend = function() return self.note.has_prepended_content end
     local can_append = function() return self.note.has_appended_content end
-    local prev_c_inc = function(inc) self.prev_c_cnt = self.prev_c_cnt + inc; self:update_context() end
-    local prev_s_inc = function(inc) self.prev_s_cnt = self.prev_s_cnt + inc; self:update_context() end
-    local next_c_inc = function(inc) self.next_c_cnt = self.next_c_cnt + inc; self:update_context() end
-    local next_s_inc = function(inc) self.next_s_cnt = self.next_s_cnt + inc; self:update_context() end
+    local prev_c_inc = function(inc) update({ prev_c = self.prev_c_cnt + inc}) end
+    local next_c_inc = function(inc) update({ next_c = self.next_c_cnt + inc}) end
+    -- char counter is reset to 0 when sentence count is changed
+    local prev_s_inc = function(inc) update({ prev_c = 0, prev_s = self.prev_s_cnt + inc}) end
+    local next_s_inc = function(inc) update({ next_c = 0, next_s = self.next_s_cnt + inc}) end
+
     local remove_prev_sentence = make_button("⏪", btn_width, function() prev_s_inc(-1) end, can_prepend)
     local remove_prev_char =     make_button("-1", btn_width, function() prev_c_inc(-1) end, can_prepend)
     local append_prev_char =     make_button("1+", btn_width, function() prev_c_inc(1) end)
