@@ -23,6 +23,7 @@ end
 
 -- context is only relevant if we looked up a word on the page.
 -- When looking up a word in a dictionary entry, this context is not relevant
+-- TODO there could be trimmed context before and after, we only check after atm
 local function with_context(popup_dict)
     local list = popup_dict.window_list
     if #list == 1 then
@@ -381,6 +382,10 @@ function AnkiNote:new(popup_dict)
     -- TODO this can be delayed
     note:init_context_buffer(note.context_size)
     note:set_custom_context(1, 0, 1, 0)
+    -- When a user updates the text in a dictionary popup window and thus gets a new popup
+    -- the word selected in the book won't reflect the word in the dictionary.
+    local _, trim = with_context(popup_dict)
+    note.trimmed_text = trim
     return note
 end
 
