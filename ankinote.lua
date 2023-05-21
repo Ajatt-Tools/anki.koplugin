@@ -21,24 +21,25 @@ local function Set(data)
     return set
 end
 
--- context is only relevant if we looked up a word on the page.
--- When looking up a word in a dictionary entry, this context is not relevant
--- TODO there could be trimmed context before and after, we only check after atm
-local function with_context(popup_dict)
-    local list = popup_dict.window_list
+--[[
+-- Determine trimmed word context for consecutive lookups.
+-- When a user updates the text in a dictionary popup window and thus gets a new popup
+-- the word selected in the book won't reflect the word in the dictionary.
+-- We want to know if last dict lookup is contained in first dict lookup.
+-- e.g.: '広大な' -> trimmed to '広大' -> context is '' (before), 'な' (after)
+--]]
+function AnkiNote:set_word_trim()
+    local list = self.popup_dict.window_list
     if #list == 1 then
-        return true, ""
-    elseif #list == 2 then
-        -- word's context is still wanted if top dict is the last word trimmed
-        -- e.g.: '広大な' -> trimmed to '広大' -> we still want the context of the orig. sentence
-        local top, below = list[#list].word, list[#list-1].word
-        local below_trimmed = below:sub(1, #top)
-        local trim = below:sub(#top+1)
-        logger.dbg(string.format("top popup dict: %s, popup dict below: %s", top, below))
-        logger.dbg(string.format("below trimmed: %s, trim leftover: %s", below_trimmed, trim))
-        return below_trimmed == top, trim
+        return
+    end
+    local orig, last = list[1].word, list[#list].word
+    logger.dbg(("first popup dict: %s, last dict : %s"):format(orig, last))
+    local s_idx, e_idx = orig:find(last, 1, true)
+    if not s_idx then
+        self.contextual_lookup = false
     else
-        return false, ""
+        self.word_trim = { before = orig:sub(1, s_idx-1), after = orig:sub(e_idx+1, #orig) }
     end
 end
 
@@ -175,11 +176,13 @@ function AnkiNote:get_metadata()
 end
 
 function AnkiNote:get_word_context()
+    if not self.contextual_lookup then
+        return self.popup_dict.word
+    end
     local provider = self.ui.document.provider
     if provider == "crengine" then -- EPUB
-        local _, trim = with_context(self.popup_dict)
         local before, after = self:get_custom_context(unpack(self.context))
-        return before .. "<b>" .. self.popup_dict.word .. trim .. "</b>" .. after
+        return before .. "<b>" .. self.popup_dict.word .. "</b>" .. after
     elseif provider == "mupdf" then -- CBZ
         local ocr_text = self.ui['Mokuro'] and self.ui['Mokuro']:get_selection()
         logger.info("selected text: ", ocr_text)
@@ -330,6 +333,10 @@ function AnkiNote:init_context_buffer(size)
     end
     local skipped_chars = Set("\n\r 　")
     local prev_c, next_c = self.ui.highlight:getSelectedWordContext(size)
+    -- pass trimmed word context along to be modified
+    logger.info("look at word trim context real quick:", self.word_trim)
+    prev_c = prev_c .. self.word_trim.before
+    next_c = self.word_trim.after .. next_c
     self.prev_context_table = {}
     for _, ch in ipairs(util.splitToChars(prev_c)) do
         if not skipped_chars[ch] then table.insert(self.prev_context_table, ch) end
@@ -371,6 +378,9 @@ function AnkiNote:new(popup_dict)
     local new = {
         context_size = 50,
         popup_dict = popup_dict,
+        -- indicates that popup_dict relates to word in book
+        contextual_lookup = true,
+        word_trim = { before = "", after = "" },
         tags = { "KOReader" },
     }
     local new_mt = {}
@@ -379,13 +389,10 @@ function AnkiNote:new(popup_dict)
     end
 
     local note = setmetatable(new, new_mt)
+    note:set_word_trim()
     -- TODO this can be delayed
     note:init_context_buffer(note.context_size)
     note:set_custom_context(1, 0, 1, 0)
-    -- When a user updates the text in a dictionary popup window and thus gets a new popup
-    -- the word selected in the book won't reflect the word in the dictionary.
-    local _, trim = with_context(popup_dict)
-    note.trimmed_text = trim
     return note
 end
 

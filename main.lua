@@ -25,8 +25,13 @@ function AnkiWidget:show_config_widget()
         buttons = {
             {{ text = "Show parsed dictionary data", id = "preview", callback = function() self.anki_connect:display_preview(self.current_note) end }},
             {{ text = sync_message, id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
-            {{ text = "Add with custom tags", id = "add_custom", callback = with_custom_tags_cb }},
-            {{ text = "Add with custom context", id = "add_custom", callback = function() self:show_custom_context_widget() end }},
+            {{ text = "Add with custom tags", id = "custom_tags", callback = with_custom_tags_cb }},
+            {{
+                text = "Add with custom context",
+                id = "custom_context",
+                enabled = self.current_note.contextual_lookup,
+                callback = function() self:show_custom_context_widget() end
+            }},
         },
     }
     UIManager:show(self.config_widget)
@@ -80,6 +85,7 @@ function AnkiWidget:init()
     self.ui.menu:registerToMainMenu(self)
     self:handle_events()
     -- Insert new button in the popup dictionary to allow adding anki cards
+    -- TODO disable button if lookup was not contextual
     DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
         self.add_to_anki_btn = {
             id = "add_to_anki",

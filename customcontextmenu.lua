@@ -209,7 +209,7 @@ function CustomContextMenu:update_context()
         }
     ]]
     local context_fmt = '<div lang="ja"><p>%s<h2 class="lookupword">%s</h2>%s</p></div>'
-    local context = context_fmt:format(prev, self.note.popup_dict.word .. self.note.trimmed_text, next_)
+    local context = context_fmt:format(prev, self.note.popup_dict.word, next_)
 
     self[1]:free()
     self.scroll_widget.htmlbox_widget:setContent(context, css, Screen:scaleBySize(self.font_size))
