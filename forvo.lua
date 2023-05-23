@@ -71,8 +71,8 @@ local function url_encode(url)
     return url
 end
 
-local function get_pronunciation_url(word)
-    local forvo_url = string.format('https://forvo.com/search/%s/ja', url_encode(word))
+local function get_pronunciation_url(word, language)
+    local forvo_url = ('https://forvo.com/search/%s/%s'):format(url_encode(word), language)
     local forvo_page = GET(forvo_url)
     if not forvo_page then
         return false

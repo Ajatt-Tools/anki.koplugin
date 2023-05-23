@@ -67,47 +67,38 @@ function AnkiConnect:get_request_error(http_return_code, request_data)
     end
 end
 
---[[
--- @return nil if nothing went wrong, else error message
--- ]]
-function AnkiConnect:set_forvo_audio(note)
-    if note.params.note.audio then
-        return
+function AnkiConnect:set_forvo_audio(word, language)
+    if not language then
+        return false, "Could not determine language of word!"
     end
-    local word = note.params.note.fields[self.conf.word_field:get_value()]
-    local ok, forvo_url = forvo.get_pronunciation_url(word)
+    local ok, forvo_url = forvo.get_pronunciation_url(word, language)
     if not ok then
-        return "Could not connect to forvo."
+        return false, "Could not connect to forvo."
     end
-    if forvo_url then
-        note.params.note.audio = {
-            url = forvo_url,
-            filename = string.format("forvo_%s.ogg", word),
-            fields = { self.conf.audio_field:get_value() }
-        }
-    end
+    return true, forvo_url and {
+        url = forvo_url,
+        filename = string.format("forvo_%s.ogg", word),
+        fields = { self.conf.audio_field:get_value() }
+    } or nil
 end
 
-function AnkiConnect:set_image_data(note)
-    if note.params.note.picture then
-        return -- already correct format
-    end
-    local img_path = note.params.note._pic
+function AnkiConnect:set_image_data(img_path)
     if not img_path then
-        return
+        return true
     end
-    note.params.note._pic = nil
     local _,filename = util.splitFilePathName(img_path)
     local img_f = io.open(img_path, 'rb')
-    if img_f then
-        note.params.note.picture = {
-            data = forvo.base64e(img_f:read("*a")),
-            filename = filename,
-            fields = { self.conf.image_field:get_value() }
-        }
-        logger.info(string.format("added %d bytes of base64 encoded data", #note.params.note.picture.data))
-        os.remove(img_path)
+    if not img_f then
+        return true
     end
+    local data = forvo.base64e(img_f:read("*a"))
+    logger.info(("added %d bytes of base64 encoded data"):format(#data))
+    os.remove(img_path)
+    return true, {
+        data = data,
+        filename = filename,
+        fields = { self.conf.image_field:get_value() }
+    }
 end
 
 function AnkiConnect:sync_offline_notes()
@@ -116,23 +107,31 @@ function AnkiConnect:sync_offline_notes()
         return self:show_popup(string.format("Synchronizing failed!\n%s", err), 3, true)
     end
 
-    local note_funcs = { -- inner tables contain function to call and function's return param which contains potential error
-        {self.set_image_data, 1},
-        {self.set_forvo_audio, 1},
-        {self.post_request, 2},
-    }
     local synced, failed, errs = {}, {}, u.defaultdict(0)
     for _,note in ipairs(self.local_notes) do
-        local func_err = nil
-        for _,func_t in ipairs(note_funcs) do
-            local func, err_idx = unpack(func_t)
-            func_err = table.remove({ func(self, note) }, err_idx)
-            if func_err then
-                errs[func_err] = errs[func_err] + 1
+        local modifiers = note.params.note._modifiers
+        local mod_error = nil
+        for param, mod in pairs(modifiers) do
+            local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
+            if not ok then
+                mod_error = result_or_err
+                errs[mod_error] = errs[mod_error] + 1
                 break
             end
+            note.params.note[param] = result_or_err
         end
-        table.insert(func_err and failed or synced, note)
+        if not mod_error then
+            -- we have to remove the _modifiers field before saving the note so anki-connect doesn't complain
+            note.params.note._modifiers = nil
+            local _, request_err = self:post_request(note)
+            if request_err then
+                mod_error = request_err
+                errs[mod_error] = errs[mod_error] + 1
+                -- if it failed we want reinsert the _modifiers field
+                note.params.note._modifiers = modifiers
+            end
+        end
+        table.insert(mod_error and failed or synced, note)
     end
     self.local_notes = failed
     local sync_message_parts = {}
@@ -186,12 +185,15 @@ function AnkiConnect:add_note(anki_note)
             end
         })
     end
-    local forvo_err = self:set_forvo_audio(note)
-    if forvo_err then
-        return self:store_offline(popup_dict, note, forvo_err)
+    for param, mod in pairs(note.params.note._modifiers) do
+        local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
+        if not ok then
+            return self:store_offline(popup_dict, note, result_or_err)
+        end
+        note.params.note[param] = result_or_err
     end
+    note.params.note._modifiers = nil
 
-    self:set_image_data(note)
     local result, request_err = self:post_request(note)
     if request_err then
         return self:show_popup(string.format("Couldn't synchronize note: %s!", request_err), 3, true)

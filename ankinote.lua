@@ -312,6 +312,12 @@ function AnkiNote:build()
     self:convert_pitch_to_HTML(pitch_accents, fields)
 
     local note = {
+        -- The caller is responsible to fill in potential audio/image fields
+        -- the _modifiers table contains info on how to populate them
+        _modifiers = {
+            audio = { func = "set_forvo_audio", args = { word, self:get_language() } },
+            picture = { func = "set_image_data", args = { self:get_picture_context() } },
+        },
         deckName = self.deckName:get_value(),
         modelName = self.modelName:get_value(),
         fields = fields,
@@ -320,10 +326,13 @@ function AnkiNote:build()
             duplicateScope = self.dupe_scope:get_value(),
         },
         tags = self.tags,
-        -- this gets converted later, currently it's just a path to an image
-        _pic = self:get_picture_context(),
     }
     return { action = "addNote", params = { note = note }, version = 6 }
+end
+
+function AnkiNote:get_language()
+    local ifo_lang = self.selected_dict.ifo_lang
+    return ifo_lang and ifo_lang.lang_in or self.ui.document:getProps().language
 end
 
 function AnkiNote:init_context_buffer(size)
@@ -378,6 +387,7 @@ function AnkiNote:new(popup_dict)
     local new = {
         context_size = 50,
         popup_dict = popup_dict,
+        selected_dict = popup_dict.results[popup_dict.dict_index],
         -- indicates that popup_dict relates to word in book
         contextual_lookup = true,
         word_trim = { before = "", after = "" },
