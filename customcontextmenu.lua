@@ -54,14 +54,16 @@ function CustomContextMenu:init()
 
     local row_span = VerticalSpan:new{ width = Size.padding.fullscreen }
     local frame_width = math.floor(math.min(screen_width, screen_height) * 0.85)
+    local frame_height = math.floor(math.min(screen_width, screen_height) * 0.50)
     local frame_border_size = Size.border.window
     local frame_padding = Size.padding.fullscreen
     local inner_width = frame_width - 2 * (frame_border_size + frame_padding)
+    local inner_height = frame_height - 2 * (frame_border_size + frame_padding)
 
     self.scroll_widget = ScrollHtmlWidget:new{
         default_font_size = Screen:scaleBySize(self.font_size),
         width = inner_width,
-        height = 150,
+        height = inner_height,
         dialog = self,
     }
     local button_span_unit_width = Size.span.horizontal_small
