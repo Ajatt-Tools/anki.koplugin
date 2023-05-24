@@ -87,10 +87,10 @@ function CustomContextMenu:init()
     local prev_s_inc = function(inc) update({ prev_c = 0, prev_s = self.prev_s_cnt + inc}) end
     local next_s_inc = function(inc) update({ next_c = 0, next_s = self.next_s_cnt + inc}) end
 
-    local remove_prev_sentence = make_button("⏪", btn_width, function() prev_s_inc(-1) end, can_prepend)
-    local remove_prev_char =     make_button("-1", btn_width, function() prev_c_inc(-1) end, can_prepend)
-    local append_prev_char =     make_button("1+", btn_width, function() prev_c_inc(1) end)
-    local append_prev_sentence = make_button("⏩", btn_width, function() prev_s_inc(1) end)
+    local remove_prev_sentence = make_button("⏩", btn_width, function() prev_s_inc(-1) end, can_prepend)
+    local remove_prev_char =     make_button("1-", btn_width, function() prev_c_inc(-1) end, can_prepend)
+    local append_prev_char =     make_button("+1", btn_width, function() prev_c_inc(1) end)
+    local append_prev_sentence = make_button("⏪", btn_width, function() prev_s_inc(1) end)
     local reset_prev =           make_button("Reset", btn_width*2, function() self:reset_prev(); return self:update_context() end)
 
     local remove_next_sentence = make_button("⏪", btn_width, function() next_s_inc(-1) end, can_append)
@@ -101,11 +101,11 @@ function CustomContextMenu:init()
 
     self.top_row = HorizontalGroup:new{
         align = "center",
-    remove_prev_sentence,
-    remove_prev_char,
-    reset_prev,
-    append_prev_char,
     append_prev_sentence,
+    append_prev_char,
+    reset_prev,
+    remove_prev_char,
+    remove_prev_sentence,
     }
 
     self.bottom_row = HorizontalGroup:new{
