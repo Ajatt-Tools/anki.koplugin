@@ -167,12 +167,9 @@ function AnkiConnect:show_popup(text, timeout, show_always)
     UIManager:show(InfoMessage:new { text = text, timeout = timeout })
 end
 
---[[
--- Create and store note, either locally or in the remotely
--- @param popup_dict: the DictQuickLookup object
---]]
-function AnkiConnect:add_note(popup_dict, custom_tags)
-    local note = self.anki_note:create_note(popup_dict, custom_tags)
+function AnkiConnect:add_note(anki_note)
+    local popup_dict = anki_note.popup_dict
+    local note = anki_note:build()
 
     local can_sync, err = self:is_running()
     if not can_sync then
@@ -235,8 +232,9 @@ function AnkiConnect:load_notes()
     os.remove(self.notes_filename)
 end
 
-function AnkiConnect:display_preview(popup_dict)
-    local dict = self.anki_note:extend_dict(popup_dict.results[popup_dict.dict_index])
+function AnkiConnect:display_preview(note)
+    local popup_dict = note.popup_dict
+    local dict = note:extend_dict(popup_dict.results[popup_dict.dict_index])
     local kana, kanji = dict:get_kana_words(), dict:get_kanji_words()
     local Foo = KeyValuePage:new{
         lang = "ja",
@@ -270,12 +268,6 @@ function AnkiConnect:new(opts)
     -- path of notes stored locally when WiFi isn't available
     self.notes_filename = self.settings_dir .. "/anki.koplugin_notes.json"
     self:load_notes()
-    -- helper class to create the notes
-    self.anki_note = require("ankinote"):new {
-        conf = opts.conf,
-        ui = opts.ui,
-        settings_dir = self.settings_dir,
-    }
     return setmetatable({} , { __index = self })
 end
 

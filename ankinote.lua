@@ -21,6 +21,29 @@ local function Set(data)
     return set
 end
 
+--[[
+-- Determine trimmed word context for consecutive lookups.
+-- When a user updates the text in a dictionary popup window and thus gets a new popup
+-- the word selected in the book won't reflect the word in the dictionary.
+-- We want to know if last dict lookup is contained in first dict lookup.
+-- e.g.: '広大な' -> trimmed to '広大' -> context is '' (before), 'な' (after)
+--]]
+function AnkiNote:set_word_trim()
+    local list = self.popup_dict.window_list
+    if #list == 1 then
+        return
+    end
+    local orig, last = list[1].word, list[#list].word
+    logger.dbg(("first popup dict: %s, last dict : %s"):format(orig, last))
+    local s_idx, e_idx = orig:find(last, 1, true)
+    if not s_idx then
+        self.contextual_lookup = false
+    else
+        self.word_trim = { before = orig:sub(1, s_idx-1), after = orig:sub(e_idx+1, #orig) }
+    end
+end
+
+
 function AnkiNote:convert_to_HTML(opts)
     local wrapper_template = opts.wrapper_template or "<div class=\"%s\"><ol>%s</ol></div>"
     local entry_template = opts.entry_template or "<li dict=\"%s\">%s</li>"
@@ -81,41 +104,6 @@ function AnkiNote:convert_pitch_to_HTML(accents, fields)
     end
     fields[self.p_a_num:get_value()] = converter("pitch_num")
     fields[self.p_a_field:get_value()] = converter("pitch_accent")
-end
-
--- [[
--- Trim the context string so it can be appended/prepended to the word we want to save.
--- @param context: string to be split up in different sentences
--- @param: is_preceding: boolean indicating whether this context comes before or after the word.
--- ]]
-function AnkiNote:trim_context(context, is_preceding)
-    local delims_map = Set("「…？」。.?!！")
-    local chars_to_skip = Set("\n\r　")
-    local matches = {}
-    local sentence = {}
-    for _, ch in ipairs(util.splitToChars(context)) do
-        if chars_to_skip[ch] then
-            -- skipping
-        elseif delims_map[ch] then
-            if not is_preceding then
-                table.insert(sentence, ch)
-            end
-            table.insert(matches, table.concat(sentence))
-            sentence = {}
-        else
-            table.insert(sentence, ch)
-        end
-    end
-    table.insert(matches, table.concat(sentence))
-    return matches[is_preceding and #matches or 1]
-end
-
--- [[
--- Create metadata string about the document the word came from.
--- ]]
-function AnkiNote:create_metadata()
-    local meta = self.ui.document._anki_metadata
-    return string.format("%s - %s (%d/%d)", meta.author, meta.title, meta:current_page(), meta.pages)
 end
 
 function AnkiNote:get_pitch_accents(dict_result)
@@ -179,18 +167,86 @@ function AnkiNote:extend_dict(dictionary_entry)
     }
 end
 
-function AnkiNote:get_word_context(word)
+-- [[
+-- Create metadata string about the document the word came from.
+-- ]]
+function AnkiNote:get_metadata()
+    local meta = self.ui.document._anki_metadata
+    return string.format("%s - %s (%d/%d)", meta.author, meta.title, meta:current_page(), meta.pages)
+end
+
+function AnkiNote:get_word_context()
+    if not self.contextual_lookup then
+        return self.popup_dict.word
+    end
     local provider = self.ui.document.provider
     if provider == "crengine" then -- EPUB
-        local prev_context, next_context = self.ui.highlight:getSelectedWordContext(50)
-        local prev_trimmed, next_trimmed = self:trim_context(prev_context, true), self:trim_context(next_context, false)
-        logger.dbg(string.format("AnkiNote#create_note(): word context: before=>'%s' after=>'%s'", prev_trimmed, next_trimmed))
-        return prev_trimmed .. "<b>" .. word .. "</b>" .. next_trimmed
+        local before, after = self:get_custom_context(unpack(self.context))
+        return before .. "<b>" .. self.popup_dict.word .. "</b>" .. after
     elseif provider == "mupdf" then -- CBZ
         local ocr_text = self.ui['Mokuro'] and self.ui['Mokuro']:get_selection()
         logger.info("selected text: ", ocr_text)
-        return ocr_text or word
+        -- TODO is trim relevant here?
+        return ocr_text or self.popup_dict.word
     end
+end
+
+--[[
+-- Returns the context before and after the lookup word, the amount of context depends on the following parameters
+-- @param pre_s: amount of sentences prepended
+-- @param pre_c: amount of characters prepended
+-- @param post_s: amount of sentences appended
+-- @param post_c: amount of characters appended
+--]]
+function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
+    logger.info("AnkiNote#get_custom_context()", pre_s, pre_c, post_s, post_c)
+    -- called when initial size `self.context_size` becomes too small.
+    local function expand_content()
+        self.context_size = self.context_size + self.context_size
+        self:init_context_buffer(self.context_size)
+    end
+
+    local delims_map = Set("？」。.?!！")
+    -- calculate the slice of the `prev_context_table` array that should be prepended to the lookupword
+    local prev_idx, prev_s_idx = 0, 0
+    while prev_s_idx < pre_s do
+        if #self.prev_context_table - prev_idx == 0 then expand_content() end
+        local idx = #self.prev_context_table - prev_idx
+        local ch = self.prev_context_table[idx]
+        assert(ch ~= nil, ("Something went wrong when parsing previous context! idx: %d, context_table size: %d"):format(idx, #self.prev_context_table))
+        if delims_map[ch] then
+            prev_s_idx = prev_s_idx + 1
+        end
+        prev_idx = prev_idx + 1
+    end
+    if prev_idx > 0 then
+        -- do not include the trailing character (if we parsed any sentences above)
+        prev_idx = prev_idx - 1
+    end
+    prev_idx = prev_idx + pre_c
+    local i, j = #self.prev_context_table - prev_idx + 1, #self.prev_context_table
+    local prepended_content = table.concat(self.prev_context_table, "", i, j)
+
+    -- calculate the slice of the `next_context_table` array that should be appended to the lookupword
+    -- `next_idx` starts at 1 because that's the first index in the table
+    local next_idx, next_s_idx = 1, 0
+    while next_s_idx < post_s do
+        if next_idx > #self.next_context_table then expand_content() end
+        local ch = self.next_context_table[next_idx]
+        assert(ch ~= nil, ("Something went wrong when parsing next context! idx: %d, context_table size: %d"):format(next_idx, #self.next_context_table))
+        if delims_map[ch] then
+            next_s_idx = next_s_idx + 1
+        end
+        next_idx = next_idx + 1
+    end
+    -- do not include the trailing character
+    next_idx = next_idx - 1
+    next_idx = next_idx + post_c
+    local appended_content = table.concat(self.next_context_table, "", 1, next_idx)
+    -- These 2 variables can be used to detect if any content was prepended / appended
+    self.has_prepended_content = prev_idx > 0
+    self.has_appended_content = next_idx > 0
+    return prepended_content, appended_content
 end
 
 function AnkiNote:get_picture_context()
@@ -206,57 +262,32 @@ function AnkiNote:get_picture_context()
     end
 end
 
---[[
--- Create an Anki note for the currently selected word. all necessary info is stored in 'popup_dict'
--- @param popup_dict: the DictQuickLookup object
---]]
-function AnkiNote:create_note(popup_dict, tags)
+function AnkiNote:build()
     -- TODO: we should highlight the WHOLE word that was selected by the JP plugin
     -- e.g. 垣間見える -> don't just select 垣間見
     -- not sure this happens always but surely sometimes
-    local popup_wrapper = self:extend_dict(popup_dict.results[popup_dict.dict_index])
-    logger.info(string.format("AnkiNote#create_note(): (%d results), %s", #popup_dict.results, popup_wrapper:as_string()))
+    local popup_wrapper = self:extend_dict(self.popup_dict.results[self.popup_dict.dict_index])
+    logger.info(string.format("AnkiNote#create_note(): (%d results), %s", #self.popup_dict.results, popup_wrapper:as_string()))
 
-    -- context is only relevant if we looked up a word on the page.
-    -- When looking up a word in a dictionary entry, this context is not relevant
-    local trim = '' -- contains char(s) which were trimmed
-    local function with_context()
-        local list = popup_dict.window_list
-        if #list == 1 then
-            return true
-        elseif #list == 2 then
-            -- word's context is still wanted if top dict is the last word trimmed
-            -- e.g.: '広大な' -> trimmed to '広大' -> we still want the context of the orig. sentence
-            local top, below = list[#list].word, list[#list-1].word
-            local below_trimmed = below:sub(1, #top)
-            trim = below:sub(#top+1)
-            logger.dbg(string.format("top popup dict: %s, popup dict below: %s", top, below))
-            logger.dbg(string.format("below trimmed: %s, trim leftover: %s", below_trimmed, trim))
-            return below_trimmed == top
-        else
-            return false
-        end
-    end
-    local note_needs_context = with_context()
     -- TODO pick the kanji representation which matches the one we looked up
-    local word = popup_wrapper:get_kanji_words()[1] or popup_wrapper:get_kana_words()[1] or popup_dict.word
+    local word = popup_wrapper:get_kanji_words()[1] or popup_wrapper:get_kana_words()[1] or self.popup_dict.word
     local fields = {
-        [self.context_field:get_value()] = note_needs_context and self:get_word_context(popup_dict.word .. trim) or popup_dict.word,
+        [self.context_field:get_value()] = self:get_word_context(),
         [self.word_field:get_value()] = word,
-        [self.meta_field:get_value()] = self:create_metadata()
+        [self.meta_field:get_value()] = self:get_metadata()
     }
 
     local pitch_accents = {}
     -- map of note fields with all dictionary entries which should be combined and saved in said field
     local field_dict_map = u.defaultdict(function() return {} end)
-    for idx, raw_result in ipairs(popup_dict.results) do
+    for idx, raw_result in ipairs(self.popup_dict.results) do
         local result = self:extend_dict(raw_result)
         -- don't add definitions where the dict word does not match the selected dict's word
         -- e.g.: 罵る vs 罵り -> noun vs verb -> we only add defs for the one we selected
         -- the info will be mostly the same, and the pitch accent might differ between noun and verb form
         if popup_wrapper:get_kana_words():contains_any(result:get_kana_words()) then
             logger.info(string.format("AnkiNote#create_note(): handling result: %s", result:as_string()))
-            local is_selected = idx == popup_dict.dict_index
+            local is_selected = idx == self.popup_dict.dict_index
             local field = (is_selected or self.save_all_override) and self.def_field:get_value() or self.dict_field_map:get_value()[result.dict]
             if field then
                 local field_defs = field_dict_map[field]
@@ -280,8 +311,6 @@ function AnkiNote:create_note(popup_dict, tags)
     -- this inserts the HTML-ified entries in fields directly
     self:convert_pitch_to_HTML(pitch_accents, fields)
 
-    -- The default 'KOReader' tag should be there no matter what
-    table.insert(tags, 1, "KOReader")
     local note = {
         deckName = self.deckName:get_value(),
         modelName = self.modelName:get_value(),
@@ -290,14 +319,47 @@ function AnkiNote:create_note(popup_dict, tags)
             allowDuplicate = self.allow_dupes:get_value(),
             duplicateScope = self.dupe_scope:get_value(),
         },
-        tags = tags,
+        tags = self.tags,
         -- this gets converted later, currently it's just a path to an image
-        _pic = note_needs_context and self:get_picture_context(),
+        _pic = self:get_picture_context(),
     }
     return { action = "addNote", params = { note = note }, version = 6 }
 end
 
-function AnkiNote:new(opts)
+function AnkiNote:init_context_buffer(size)
+    logger.info(("(re)initializing context buffer with size: %d"):format(size))
+    if self.prev_context_table and self.next_context_table then
+        logger.info(("before reinit: prev table = %d, next table = %d"):format(#self.prev_context_table, #self.next_context_table))
+    end
+    local skipped_chars = Set("\n\r 　")
+    local prev_c, next_c = self.ui.highlight:getSelectedWordContext(size)
+    -- pass trimmed word context along to be modified
+    logger.info("look at word trim context real quick:", self.word_trim)
+    prev_c = prev_c .. self.word_trim.before
+    next_c = self.word_trim.after .. next_c
+    self.prev_context_table = {}
+    for _, ch in ipairs(util.splitToChars(prev_c)) do
+        if not skipped_chars[ch] then table.insert(self.prev_context_table, ch) end
+    end
+    self.next_context_table = {}
+    for _, ch in ipairs(util.splitToChars(next_c)) do
+        if not skipped_chars[ch] then table.insert(self.next_context_table, ch) end
+    end
+    logger.info(("after reinit: prev table = %d, next table = %d"):format(#self.prev_context_table, #self.next_context_table))
+end
+
+function AnkiNote:set_custom_context(pre_s, pre_c, post_s, post_c)
+    self.context = { pre_s, pre_c, post_s, post_c }
+end
+
+function AnkiNote:add_tags(tags)
+    for _,t in ipairs(tags) do
+        table.insert(self.tags, t)
+    end
+end
+
+-- This function should be called before using the 'class' at all
+function AnkiNote:extend(opts)
     -- conf table is passed along to DictEntryWrapper
     self.conf = opts.conf
     -- settings are inserted in self table directly for easy access
@@ -309,6 +371,29 @@ function AnkiNote:new(opts)
     -- used to save screenshots in (CBZ only)
     self.settings_dir = opts.settings_dir
     return self
+end
+
+
+function AnkiNote:new(popup_dict)
+    local new = {
+        context_size = 50,
+        popup_dict = popup_dict,
+        -- indicates that popup_dict relates to word in book
+        contextual_lookup = true,
+        word_trim = { before = "", after = "" },
+        tags = { "KOReader" },
+    }
+    local new_mt = {}
+    function new_mt.__index(t, v)
+        return rawget(t, v) or self[v]
+    end
+
+    local note = setmetatable(new, new_mt)
+    note:set_word_trim()
+    -- TODO this can be delayed
+    note:init_context_buffer(note.context_size)
+    note:set_custom_context(1, 0, 1, 0)
+    return note
 end
 
 return AnkiNote
