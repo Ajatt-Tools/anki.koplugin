@@ -342,7 +342,7 @@ function AnkiNote:init_context_buffer(size)
     if self.prev_context_table and self.next_context_table then
         logger.info(("before reinit: prev table = %d, next table = %d"):format(#self.prev_context_table, #self.next_context_table))
     end
-    local skipped_chars = Set("\n\r 　")
+    local skipped_chars = Set("\n\r")
     local prev_c, next_c = self.ui.highlight:getSelectedWordContext(size)
     -- pass trimmed word context along to be modified
     logger.info("look at word trim context real quick:", self.word_trim)
