@@ -210,7 +210,7 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
     -- calculate the slice of the `prev_context_table` array that should be prepended to the lookupword
     local prev_idx, prev_s_idx = 0, 0
     while prev_s_idx < pre_s do
-        if #self.prev_context_table < prev_idx then expand_content() end
+        if #self.prev_context_table <= prev_idx then expand_content() end
         local idx = #self.prev_context_table - prev_idx
         local ch = self.prev_context_table[idx]
         assert(ch ~= nil, ("Something went wrong when parsing previous context! idx: %d, context_table size: %d"):format(idx, #self.prev_context_table))
@@ -224,7 +224,7 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
         prev_idx = prev_idx - 1
     end
     prev_idx = prev_idx + pre_c
-    if #self.prev_context_table < prev_idx then expand_content() end
+    if #self.prev_context_table <= prev_idx then expand_content() end
     local i, j = #self.prev_context_table - prev_idx + 1, #self.prev_context_table
     local prepended_content = table.concat(self.prev_context_table, "", i, j)
 
