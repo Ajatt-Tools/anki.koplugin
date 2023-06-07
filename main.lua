@@ -32,6 +32,15 @@ function AnkiWidget:show_config_widget()
                 enabled = self.current_note.contextual_lookup,
                 callback = function() self:show_custom_context_widget() end
             }},
+            {{
+                text = "Delete latest note",
+                id = "note_delete",
+                enabled = self.anki_connect.latest_synced_note ~= nil,
+                callback = function()
+                    self.anki_connect:delete_latest_note()
+                    self.config_widget:onClose()
+                end
+            }},
         },
     }
     UIManager:show(self.config_widget)

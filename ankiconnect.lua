@@ -35,8 +35,7 @@ function AnkiConnect:is_running()
     return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
 end
 
-function AnkiConnect:post_request(note)
-    local json_payload = json.encode(note)
+function AnkiConnect:post_request(json_payload)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request
     local request = {
@@ -123,7 +122,7 @@ function AnkiConnect:sync_offline_notes()
         if not mod_error then
             -- we have to remove the _modifiers field before saving the note so anki-connect doesn't complain
             note.params.note._modifiers = nil
-            local _, request_err = self:post_request(note)
+            local _, request_err = self:post_request(json.encode(note))
             if request_err then
                 mod_error = request_err
                 errs[mod_error] = errs[mod_error] + 1
@@ -136,6 +135,9 @@ function AnkiConnect:sync_offline_notes()
     self.local_notes = failed
     local sync_message_parts = {}
     if #synced > 0 then
+        -- if any notes were synced succesfully, reset the latest added note (since it's not actually latest anymore)
+        -- no point in saving the actual latest synced note, since the user won't know which note that was anyway
+        self.latest_synced_note = nil
         table.insert(sync_message_parts, ("Finished synchronizing %d note(s)."):format(#synced))
     end
     if #failed > 0 then
@@ -166,6 +168,32 @@ function AnkiConnect:show_popup(text, timeout, show_always)
     UIManager:show(InfoMessage:new { text = text, timeout = timeout })
 end
 
+function AnkiConnect:delete_latest_note()
+    local latest = self.latest_synced_note
+    if not latest then
+        return
+    end
+    if latest.state == "online" then
+        local can_sync, err = self:is_running()
+        if not can_sync then
+            return self:show_popup(("Could not delete synced note: %s"):format(err), 3, true)
+        end
+        -- don't use rapidjson, the anki note ids are 64bit integers, they are turned into different numbers by the json library
+        -- presumably because 32 vs 64 bit architecture
+        local delete_request = ([[{"action": "deleteNotes", "version": 6, "params": {"notes": [%d]} }]]):format(latest.id)
+        local _, err = self:post_request(delete_request)
+        if err then
+            return self:show_popup(("Couldn't delete note: %s!"):format(err), 3, true)
+        end
+        self:show_popup(("Removed note (id: %s)"):format(latest.id), 3, true)
+    else
+        table.remove(self.local_notes, #self.local_notes)
+        self.local_notes[latest.id] = nil
+        self:show_popup(("Removed note (word: %s)"):format(latest.id), 3, true)
+    end
+    self.latest_synced_note = nil
+end
+
 function AnkiConnect:add_note(anki_note)
     local popup_dict = anki_note.popup_dict
     local note = anki_note:build()
@@ -194,10 +222,11 @@ function AnkiConnect:add_note(anki_note)
     end
     note.params.note._modifiers = nil
 
-    local result, request_err = self:post_request(note)
+    local result, request_err = self:post_request(json.encode(note))
     if request_err then
         return self:show_popup(string.format("Couldn't synchronize note: %s!", request_err), 3, true)
     end
+    self.latest_synced_note = { state = "online", id = json.decode(result).result }
     logger.info("note added succesfully: " .. result)
 end
 
@@ -208,6 +237,7 @@ function AnkiConnect:store_offline(popup_dict, note, reason, show_always)
     end
     self.local_notes[popup_dict.lookupword] = true
     table.insert(self.local_notes, note)
+    self.latest_synced_note = { state = "offline", id = popup_dict.lookupword }
     return self:show_popup(string.format("%s\nStored note offline", reason), 3, show_always or false)
 end
 
