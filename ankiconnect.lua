@@ -56,7 +56,7 @@ end
 
 function AnkiConnect:get_request_error(http_return_code, request_data)
     if http_return_code ~= 200 then
-        return string.format("Invalid return code %d.")
+        return string.format("Invalid return code: %s.", http_return_code)
     else
         local json_err = json.decode(request_data)['error']
         -- this turns a json NULL in a userdata instance, actual error will be a string
@@ -133,6 +133,10 @@ function AnkiConnect:sync_offline_notes()
         table.insert(mod_error and failed or synced, note)
     end
     self.local_notes = failed
+    for _,note in ipairs(failed) do
+        local id = note.params.note.fields[self.conf.word_field:get_value()]
+        self.local_notes[id] = true
+    end
     local sync_message_parts = {}
     if #synced > 0 then
         -- if any notes were synced succesfully, reset the latest added note (since it's not actually latest anymore)
@@ -195,12 +199,11 @@ function AnkiConnect:delete_latest_note()
 end
 
 function AnkiConnect:add_note(anki_note)
-    local popup_dict = anki_note.popup_dict
     local note = anki_note:build()
 
     local can_sync, err = self:is_running()
     if not can_sync then
-        return self:store_offline(popup_dict, note, err)
+        return self:store_offline(note, err)
     end
 
     if #self.local_notes > 0 then
@@ -216,7 +219,7 @@ function AnkiConnect:add_note(anki_note)
     for param, mod in pairs(note.params.note._modifiers) do
         local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
         if not ok then
-            return self:store_offline(popup_dict, note, result_or_err)
+            return self:store_offline(note, result_or_err)
         end
         note.params.note[param] = result_or_err
     end
@@ -230,14 +233,15 @@ function AnkiConnect:add_note(anki_note)
     logger.info("note added succesfully: " .. result)
 end
 
-function AnkiConnect:store_offline(popup_dict, note, reason, show_always)
+function AnkiConnect:store_offline(note, reason, show_always)
     -- word stored as key as well so we can have a simple duplicate check for offline notes
-    if self.local_notes[popup_dict.lookupword] then
+    local id = note.params.note.fields[self.conf.word_field:get_value()]
+    if self.local_notes[id] then
         return self:show_popup("Cannot store duplicate note offline!", 3, true)
     end
-    self.local_notes[popup_dict.lookupword] = true
+    self.local_notes[id] = true
     table.insert(self.local_notes, note)
-    self.latest_synced_note = { state = "offline", id = popup_dict.lookupword }
+    self.latest_synced_note = { state = "offline", id = id }
     return self:show_popup(string.format("%s\nStored note offline", reason), 3, show_always or false)
 end
 
