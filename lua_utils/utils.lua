@@ -15,6 +15,16 @@ function utils.read_file(filename, line_parser)
     return data
 end
 
+function utils.open_file(filename, mode, callback)
+    local f = io.open(filename, mode)
+    if not f then
+        return
+    end
+    local res = callback(f)
+    f:close()
+    return res
+end
+
 function utils.split(input, sep, is_regex)
     local splits, last_idx, plain = {}, 1, true
     local function add_substring(from, to)

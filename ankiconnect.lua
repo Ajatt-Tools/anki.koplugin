@@ -133,10 +133,14 @@ function AnkiConnect:sync_offline_notes()
         table.insert(mod_error and failed or synced, note)
     end
     self.local_notes = failed
+    local failed_as_json = {}
     for _,note in ipairs(failed) do
+        table.insert(failed_as_json, json.encode(note))
         local id = note.params.note.fields[self.conf.word_field:get_value()]
         self.local_notes[id] = true
     end
+    -- called even when there's no failed notes, this way it also gets rid of the notes which we managed to sync, no need to keep those around
+    u.open_file(self.notes_filename, 'w', function(f) f:write(table.concat(failed_as_json, '\n')) end)
     local sync_message_parts = {}
     if #synced > 0 then
         -- if any notes were synced succesfully, reset the latest added note (since it's not actually latest anymore)
@@ -156,6 +160,7 @@ function AnkiConnect:sync_offline_notes()
             ok_text = "Discard failures",
             cancel_text = "Keep",
             ok_callback = function()
+                os.remove(self.notes_filename)
                 self.local_notes = {}
             end
         })
@@ -241,31 +246,21 @@ function AnkiConnect:store_offline(note, reason, show_always)
     end
     self.local_notes[id] = true
     table.insert(self.local_notes, note)
+    u.open_file(self.notes_filename, 'a', function(f) f:write(json.encode(note) .. '\n') end)
     self.latest_synced_note = { state = "offline", id = id }
     return self:show_popup(string.format("%s\nStored note offline", reason), 3, show_always or false)
 end
 
-function AnkiConnect:save_notes()
-    if #self.local_notes == 0 then
-        return nil
-    end
-    logger.dbg(string.format("AnkiConnect#save_notes(): Saving %d notes to disk.", #self.local_notes))
-    local f = io.open(self.notes_filename, "w")
-    f:write(json.encode(self.local_notes))
-    f:close()
-end
-
 function AnkiConnect:load_notes()
-    local f = io.open(self.notes_filename, "r")
-    if not f then
-        return nil
-    end
-    self.local_notes = {}
-    for _,note in ipairs(json.decode(f:read("*a"))) do
-        table.insert(self.local_notes, note)
-    end
-    logger.dbg(string.format("AnkiConnect#load_notes(): Loading %d notes from disk.", #self.local_notes))
-    os.remove(self.notes_filename)
+    u.open_file(self.notes_filename, 'r', function(f)
+        for note_json in f:lines() do
+            local note = json.decode(note_json)
+            table.insert(self.local_notes, note)
+            -- store unique identifier in local_notes tabel for basic duplicates check
+            self.local_notes[note.params.note.fields[self.conf.word_field:get_value()]] = true
+        end
+    end)
+    logger.dbg(string.format("AnkiConnect#get_offline_notes(): Loaded %d notes from disk.", #self.local_notes))
 end
 
 function AnkiConnect:display_preview(note)

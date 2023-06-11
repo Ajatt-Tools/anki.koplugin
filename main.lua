@@ -148,17 +148,11 @@ end
 function AnkiWidget:handle_events()
     -- these all return false so that the event goes up the chain, other widgets might wanna react to these events
     self.onCloseWidget = function()
-        self.anki_connect:save_notes()
         self.user_config:save()
     end
 
     self.onSuspend = function()
-        self.anki_connect:save_notes()
         self.user_config:save()
-    end
-
-    self.onResume = function()
-        self.anki_connect:load_notes()
     end
 
     self.onNetworkConnected = function()
