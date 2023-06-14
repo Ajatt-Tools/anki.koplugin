@@ -4,6 +4,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
 local List = require("lua_utils.list")
+local config = require("configwrapper")
 
 local general_settings = { "generic_settings", "General Settings" }
 local note_settings = { "note_settings", "Anki Note Settings" }
@@ -243,7 +244,7 @@ function MenuConfigOpt:build_map_dialog()
             self:update_value(new)
             UIManager:close(dialog)
         end
-        local input_dialog = build_single_dialog(entry_key, new[entry_key] or "", nil,self.new_entry_value, cb)
+        local input_dialog = build_single_dialog(entry_key, new[entry_key] or "", nil, self.new_entry_value, cb)
         UIManager:show(input_dialog)
         input_dialog:onShowKeyboard()
     end
@@ -292,15 +293,18 @@ function MenuConfigOpt:build_map_dialog()
 end
 
 function MenuBuilder:new(opts)
-    self.user_config = opts.user_config
     self.ui = opts.ui -- needed to get the enabled dictionaries
     self.extensions = opts.extensions
     return self
 end
 
 function MenuBuilder:build()
+    if not config.current_profile then
+        -- TODO it would be nice if you could select all profiles and allow editing them
+        return {}
+    end
     local menu_options = {}
-    for id, user_conf in pairs(self.user_config) do
+    for id, user_conf in pairs(config.current_profile) do
         local idx = menu_entries[id]
         local entry = menu_entries[idx]
         if entry then
