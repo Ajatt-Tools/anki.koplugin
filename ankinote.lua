@@ -1,6 +1,7 @@
 local logger = require("logger")
 local util = require("util")
 local u = require("lua_utils/utils")
+local conf = require("configuration")
 
 local LANG_NOT_SET_ERROR = "Neither the dictionary, nor the document have its language set. See the FAQ section in the plugin's README."
 local AnkiNote = {
@@ -173,12 +174,12 @@ end
 
 function AnkiNote:build()
     local fields = {
-        [self.word_field:get_value()] = self.popup_dict.word,
-        [self.def_field:get_value()] = self:get_definition()
+        [conf.word_field:get_value()] = self.popup_dict.word,
+        [conf.def_field:get_value()] = self:get_definition()
     }
     local optional_fields = {
-        [self.context_field] = function() return self:get_word_context() end,
-        [self.meta_field]    = function() return self:get_metadata() end,
+        [conf.context_field] = function() return self:get_word_context() end,
+        [conf.meta_field]    = function() return self:get_metadata() end,
     }
     for opt,fn in pairs(optional_fields) do
         local field_name = opt:get_value()
@@ -191,17 +192,22 @@ function AnkiNote:build()
     local field_callbacks = {
         picture = { func = "set_image_data", args = { self:get_picture_context() } },
     }
-    if self.audio_field:get_value() then
+    if conf.audio_field:get_value() then
        field_callbacks.audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } }
     end
     local note = {
-        _field_callbacks = field_callbacks,
-        deckName = self.deckName:get_value(),
-        modelName = self.modelName:get_value(),
+        -- some fields require an internet connection, which we may not have at this point
+        -- all info needed to populate them is stored as a callback, which is called when a connection is available
+        _field_callbacks = {
+            audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } },
+            picture = { func = "set_image_data", args = { self:get_picture_context() } },
+        },
+        deckName = conf.deckName:get_value(),
+        modelName = conf.modelName:get_value(),
         fields = fields,
         options = {
-            allowDuplicate = self.allow_dupes:get_value(),
-            duplicateScope = self.dupe_scope:get_value(),
+            allowDuplicate = conf.allow_dupes:get_value(),
+            duplicateScope = conf.dupe_scope:get_value(),
         },
         tags = self.tags,
     }
@@ -254,7 +260,7 @@ end
 -- each user extension gets access to the AnkiNote table as well
 function AnkiNote:load_extensions()
     self.extensions = {}
-    local extension_set = u.to_set(self.enabled_extensions:get_value())
+    local extension_set = u.to_set(conf.enabled_extensions:get_value())
     for _, ext_filename in ipairs(self.ext_modules) do
         if extension_set[ext_filename] then
             local module = self.ext_modules[ext_filename]
@@ -265,12 +271,6 @@ end
 
 -- This function should be called before using the 'class' at all
 function AnkiNote:extend(opts)
-    -- conf table is passed along to DictEntryWrapper
-    self.conf = opts.conf
-    -- settings are inserted in self table directly for easy access
-    for k,v in pairs(opts.conf) do
-        self[k] = v
-    end
     -- dict containing various settings about the current state
     self.ui = opts.ui
     -- used to save screenshots in (CBZ only)
@@ -279,7 +279,6 @@ function AnkiNote:extend(opts)
     self.ext_modules = opts.ext_modules
     return self
 end
-
 
 function AnkiNote:new(popup_dict)
     local new = {
@@ -303,7 +302,7 @@ function AnkiNote:new(popup_dict)
     -- TODO this can be delayed
     if note.contextual_lookup then
         note:init_context_buffer(note.context_size)
-        note:set_custom_context(self.conf.prev_sentence_count:get_value(), 0, self.conf.next_sentence_count:get_value(), 0)
+        note:set_custom_context(tonumber(conf.prev_sentence_count:get_value()), 0, tonumber(conf.next_sentence_count:get_value()), 0)
     end
     return note
 end

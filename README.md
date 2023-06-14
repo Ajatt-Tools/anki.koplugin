@@ -38,8 +38,8 @@ When pressed, the add-on will generate a note for the looked up word.
 ## Features
 The information extracted from the dictionary and book is sent to separate fields on the note.
 
-Below is a list of all fields, along with the configuration option that defines which field on your note it ends up on.
-The configuration options are stored in `config.lua`. Each key mentioned below (e.g. `word_field`, `def_field`) is defined in this file.
+Below is a list of all fields, along with the setting that defines which field on your note it ends up on.
+These settings are configured via a user profile, see [Profiles](profiles/README.md) for more info.
 
 <details>
   <summary>Available fields</summary>
@@ -48,6 +48,11 @@ The configuration options are stored in `config.lua`. Each key mentioned below (
   The word selected in the book.
   #### Sentence context (`context_field`)
   The full sentence that the word occured in, extracted from the book.
+  #### Previous sentence count (`prev_sentence_count`)
+  Define the amount of sentences which should be prepended to the word you looked up. Set this to `1` to have it complete the sentence the word occured in.
+  #### Next sentence count (`next_sentence_count`)
+  Define the amount of sentences which should be appended to the word you looked up. Set this to `1` to have it complete the sentence the word occured in.
+  
   
   The exact context stored can be modified by pressing and holding the 'Add to Anki' button, and choosing the 'custom context' entry on the menu that pops up.
   
@@ -77,18 +82,17 @@ As mentioned earlier, when pressing and holding the 'Add to Anki' button, a sepa
 ##### Sync offline notes
 This option can be used to send the locally stored notes to Anki.
 ##### Custom tags
-This allows the user to allows the user to create a card with custom tags, which are defined in `config.lua`
+This allows the user to allows the user to create a card with custom tags.
 ##### Custom context
 By default, the complete sentence the word occured in is stored on the note. In cases where this is too little or too much context, the user can modify it by pressing this button. This pops up a menu where the exact amount of text can be selected.
 #### Undo latest note
 It's also possible to undo the creation of the latest card, which can be handy when deciding you want to add some extra context to the note.
+#### Change profile
+Link the currently opened document with a different user profile.
 
 ## Configuration
 
-User configuration is stored in the `config.lua` file. Take care not to break the Lua syntax!
-
-Do not remove any entries which are marked as REQUIRED in the explanatory comment. Doing so will cause the plugin to fail to load.
-Other entries can be safely omitted, any missing fields will not be generated.
+Configuration is done by defining profiles, See [Profiles](profiles/README.md) for more info.
 
 ### Edit configuration within KOreader
 There is code in place to create a menu, with which some of the fields can be edited on the reader itself. Adding an option in the KOreader's menu isn't possible from within a standalone plugin, but it can be done with a [user patch](https://github.com/koreader/koreader/wiki/User-patches).
@@ -111,13 +115,7 @@ There is code in place to create a menu, with which some of the fields can be ed
 If everything goes right, this should add an extra option to the search menu:
 ![2023-03-30_19-57](https://user-images.githubusercontent.com/34285115/228923486-bc6f87ec-f65a-4789-bcb5-e053ba36aa5c.png)
 
-**NOTE**
-
-When updating one of the settings on the reader itself, this setting will be stored in KOreader's `settings` folder, under the name `ankiconnect.lua`.
-This means that the value in `config.lua` may not be the one that's used by the plugin. KOreader's settings folder takes precedence.
-
-This `ankiconnect.lua` file can safely be deleted, in which case the 'default' settings from `config.lua` will be used again.
-
+When editing a profile which is *not* the default one, it's possible to 'unset' a setting (meaning it falls back on whatever is present in the `default.lua` profile). This is done by pressing and holding the setting you would like to reset.
 
 ## FAQ
 

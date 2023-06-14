@@ -13,6 +13,7 @@ local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
 local forvo = require("forvo")
 local u = require("lua_utils/utils")
+local conf = require("configuration")
 
 local AnkiConnect = {
     settings_dir = DataStorage:getSettingsDir(),
@@ -29,7 +30,7 @@ function AnkiConnect:is_running()
     if not self.wifi_connected then
         return false, "WiFi disconnected."
     end
-    local result, code, headers = self:with_timeout(1, function() return http.request(self.conf.url:get_value()) end)
+    local result, code, headers = self:with_timeout(1, function() return http.request(conf.url:get_value()) end)
     logger.dbg(string.format("AnkiConnect#is_running = code: %s, headers: %s, result: %s", code, headers, result))
     return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
 end
@@ -38,7 +39,7 @@ function AnkiConnect:post_request(json_payload)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request
     local request = {
-        url = self.conf.url:get_value(),
+        url = conf.url:get_value(),
         method = "POST",
         headers = {
             ["Content-Type"] = "application/json",
@@ -65,8 +66,9 @@ function AnkiConnect:get_request_error(http_return_code, request_data)
     end
 end
 
+-- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
 function AnkiConnect:set_forvo_audio(word, language)
-    local field = self.conf.audio_field:get_value()
+    local field = conf.audio_field:get_value()
     if not field then
         return true
     end
@@ -82,7 +84,7 @@ function AnkiConnect:set_forvo_audio(word, language)
 end
 
 function AnkiConnect:set_image_data(img_path)
-    local field = self.conf.image_field:get_value()
+    local field = conf.image_field:get_value()
     if not field then
         return true
     end
@@ -100,6 +102,7 @@ function AnkiConnect:set_image_data(img_path)
     return true, {
         data = data,
         filename = filename,
+        -- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
         fields = { field }
     }
 end
@@ -140,7 +143,7 @@ function AnkiConnect:sync_offline_notes()
     local failed_as_json = {}
     for _,note in ipairs(failed) do
         table.insert(failed_as_json, json.encode(note))
-        local id = note.params.note.fields[self.conf.word_field:get_value()]
+        local id = note.params.note.fields[conf.word_field:get_value()]
         if id then
             self.local_notes[id] = true
         end
@@ -264,7 +267,7 @@ end
 
 function AnkiConnect:store_offline(note, reason, show_always)
     -- word stored as key as well so we can have a simple duplicate check for offline notes
-    local id = note.params.note.fields[self.conf.word_field:get_value()]
+    local id = note.params.note.fields[conf.word_field:get_value()]
     if self.local_notes[id] then
         return self:show_popup("Cannot store duplicate note offline!", 6, true)
     end
@@ -282,7 +285,7 @@ function AnkiConnect:load_notes()
             assert(note, ("Could not parse note '%s': %s"):format(note_json, err))
             table.insert(self.local_notes, note)
             -- store unique identifier in local_notes tabel for basic duplicates check
-            local note_id = note.params.note.fields[self.conf.word_field:get_value()]
+            --local note_id = note.params.note.fields[conf.word_field:get_value()]
             -- when the user creates notes with different settings then the current word_field might not be present
             -- on all locally stored notes, we'll just not have the duplicates check for these
             if note_id then
@@ -296,20 +299,15 @@ end
 -- [[
 -- required args:
 -- * url: to connect to remote AnkiConnect session
--- * conf: default configs which are used everywhere
 -- * ui: necessary to get context of word in AnkiNote
 -- ]]
 function AnkiConnect:new(opts)
-    self.conf = opts.conf
-    -- reference to the button inserted on the dictionary popup window
-    self.btn = opts.btn
     -- NetworkMgr func is device dependent, assume it's true when not implemented.
     self.wifi_connected = NetworkMgr.isWifiOn and NetworkMgr:isWifiOn() or true
     -- contains notes which we could not sync yet
     self.local_notes = {}
     -- path of notes stored locally when WiFi isn't available
     self.notes_filename = self.settings_dir .. "/anki.koplugin_notes.json"
-    self:load_notes()
     return setmetatable({} , { __index = self })
 end
 

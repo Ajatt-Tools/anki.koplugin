@@ -1,9 +1,11 @@
+local ConfirmBox = require("ui/widget/confirmbox")
 local UIManager = require("ui/uimanager")
 local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
 local List = require("lua_utils.list")
+local config = require("configuration")
 
 local general_settings = { "generic_settings", "General Settings" }
 local note_settings = { "note_settings", "Anki Note Settings" }
@@ -129,7 +131,7 @@ local MenuConfigOpt = {
 }
 
 function MenuConfigOpt:new(o)
-    local new_ = { idx = o.idx } -- idx is used to sort the entries so they are displayed in a consistent order
+    local new_ = { idx = o.idx, enabled = o.enabled } -- idx is used to sort the entries so they are displayed in a consistent order
     for k,v in pairs(o.user_conf) do new_[k] = v end
     for k,v in pairs(o.menu_entry) do new_[k] = v end
     local function index(t, k)
@@ -160,14 +162,14 @@ function MenuConfigOpt:build_single_dialog()
         self:update_value(dialog:getInputText())
         UIManager:close(dialog)
     end
-    local input_dialog = build_single_dialog(self.name, self:get_value(), self.name, self.description, callback)
+    local input_dialog = build_single_dialog(self.name, self:get_value_nodefault(), self.name, self.description, callback)
     UIManager:show(input_dialog)
     input_dialog:onShowKeyboard()
 end
 
 function MenuConfigOpt:build_multi_dialog()
     local fields = {}
-    for k,v in pairs(self:get_value()) do
+    for k,v in pairs(self:get_value_nodefault() or {}) do
         table.insert(fields, { description = k, text = v })
     end
 
@@ -203,7 +205,7 @@ function MenuConfigOpt:build_list_dialog()
         UIManager:close(dialog)
     end
     local description = self.description.."\nMultiple values can be listed, separated by a comma."
-    local input_dialog = build_single_dialog(self.name,table.concat(self:get_value(), ","), self.name, description, callback)
+    local input_dialog = build_single_dialog(self.name,table.concat(self:get_value_nodefault() or {}, ","), self.name, description, callback)
     UIManager:show(input_dialog)
     input_dialog:onShowKeyboard()
 end
@@ -213,12 +215,12 @@ function MenuConfigOpt:build_checklist()
     for _, list_item in ipairs(self:default_values()) do
         table.insert(menu_items, {
             text = list_item,
-            checked_func = function() return List:new(self:get_value()):contains(list_item) end,
+            checked_func = function() return List:new(self:get_value_nodefault() or {}):contains(list_item) end,
             hold_callback = function()
                 UIManager:show(InfoMessage:new { text = self.extensions[list_item].description, timeout = nil })
             end,
             callback = function()
-                local l = List:new(self:get_value())
+                local l = List:new(self:get_value_nodefault() or {})
                 if l:contains(list_item) then
                     l:remove(list_item)
                 else
@@ -233,17 +235,17 @@ end
 
 function MenuConfigOpt:build_map_dialog()
     local function is_enabled(k)
-        return self:get_value()[k] ~= nil
+        return (self:get_value_nodefault() or {})[k] ~= nil
     end
     -- called when enabling or updating a value in the map
     local function update_map_entry(entry_key)
-        local new = self:get_value()
+        local new = self:get_value_nodefault() or {}
         local cb = function(dialog)
             new[entry_key] = dialog:getInputText()
             self:update_value(new)
             UIManager:close(dialog)
         end
-        local input_dialog = build_single_dialog(entry_key, new[entry_key] or "", nil,self.new_entry_value, cb)
+        local input_dialog = build_single_dialog(entry_key, new[entry_key] or "", nil, self.new_entry_value, cb)
         UIManager:show(input_dialog)
         input_dialog:onShowKeyboard()
     end
@@ -259,7 +261,7 @@ function MenuConfigOpt:build_map_dialog()
             keep_menu_open = true,
             checked_func = function() return is_enabled(entry_key) end,
             callback = function()
-                local new = self:get_value()
+                local new = self:get_value_nodefault() or {}
                 if is_enabled(entry_key) then
                     new[entry_key] = nil
                     self:update_value(new)
@@ -292,50 +294,68 @@ function MenuConfigOpt:build_map_dialog()
 end
 
 function MenuBuilder:new(opts)
-    self.user_config = opts.user_config
     self.ui = opts.ui -- needed to get the enabled dictionaries
     self.extensions = opts.extensions
     return self
 end
 
 function MenuBuilder:build()
-    local menu_options = {}
-    for id, user_conf in pairs(self.user_config) do
-        local idx = menu_entries[id]
-        local entry = menu_entries[idx]
-        if entry then
-            table.insert(menu_options, MenuConfigOpt:new{ user_conf = user_conf, menu_entry = entry, idx = idx })
+    local profiles = {}
+    for name, p in pairs(config.profiles) do
+        local menu_options = {}
+        for _, setting in ipairs(config) do
+                local user_conf = setting:copy {
+                    profile = p,
+                    value = p.data[setting.id]
+                }
+                local idx = menu_entries[setting.id]
+                local entry = menu_entries[idx]
+                if entry then
+                    table.insert(menu_options, MenuConfigOpt:new{ user_conf = user_conf, menu_entry = entry, idx = idx, enabled = p.data[setting.id] ~= nil })
+                end
         end
-    end
-    table.sort(menu_options, function(a,b) return a.idx < b.idx end)
+        table.sort(menu_options, function(a,b) return a.idx < b.idx end)
 
-    -- contains data as expected to be passed along to main config widget
-    local sub_item_table = {}
-    local grouping_func = function(x) return x.group[2] end
-    local group_order = { ["General Settings"] = 1, ["Anki Note Settings"] = 2, ["Dictionary Settings"] = 3 }
-    for group, group_entries in pairs(List:new(menu_options):group_by(grouping_func):get()) do
-        local menu_group = {}
-        for _,opt in ipairs(group_entries) do
-            table.insert(menu_group, self:convert_opt(opt))
+        -- contains data as expected to be passed along to main config widget
+        local sub_item_table = {}
+        local grouping_func = function(x) return x.group[2] end
+        local group_order = { ["General Settings"] = 1, ["Anki Note Settings"] = 2, ["Dictionary Settings"] = 3 }
+        for group, group_entries in pairs(List:new(menu_options):group_by(grouping_func):get()) do
+            local menu_group = {}
+            for _,opt in ipairs(group_entries) do
+                table.insert(menu_group, self:convert_opt(opt))
+            end
+            table.insert(sub_item_table, { text = group, sub_item_table = menu_group })
         end
-        table.insert(sub_item_table, { text = group, sub_item_table = menu_group })
+        table.sort(sub_item_table, function(a,b) return group_order[a.text] < group_order[b.text] end)
+        table.insert(profiles, { text = name, sub_item_table = sub_item_table })
     end
-    table.sort(sub_item_table, function(a,b) return group_order[a.text] < group_order[b.text] end)
-    return sub_item_table
+    return profiles
 end
 
 function MenuBuilder:convert_opt(opt)
     local sub_item_entry = {
         text = opt.name,
         keep_menu_open = true,
+        --enabled_func = function() return opt.enabled end,
+        hold_callback = function()
+            -- no point in allowing deleting of stuff in the default profile
+            if opt.profile.name == "default" then return end
+            UIManager:show(ConfirmBox:new{
+                text = "Do you want to delete this setting from the current profile?",
+                ok_callback = function()
+                    opt:delete()
+                end
+            })
+        end
     }
     if opt.conf_type == "text" then
         sub_item_entry['callback'] = function() return opt:build_single_dialog() end
     elseif opt.conf_type == "table" then
         sub_item_entry['callback'] = function() return opt:build_multi_dialog() end
     elseif opt.conf_type == "bool" then
-        sub_item_entry['checked_func'] = function() return opt:get_value() == true end
-        sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value()) end
+        sub_item_entry['checked_func'] = function() return opt:get_value_nodefault() == true end
+        sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value_nodefault()) end
     elseif opt.conf_type == "list" then
         sub_item_entry['callback'] = function() return opt:build_list_dialog() end
     elseif opt.conf_type == "checklist" then

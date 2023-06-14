@@ -1,3 +1,4 @@
+local conf = require("configuration")
 local CustomWordLookup = {
     description = "This plugin modifies the default addon behavior. Instead of saving the word selected in the book, it selects the headword in the dictionary entry itself."
 }
@@ -12,7 +13,7 @@ function CustomWordLookup:run(note)
     -- TODO pick the kanji representation which matches the one we looked up
     local parsed_word = selected:get_kanji_words()[1] or selected:get_kana_words()[1]
     if parsed_word then
-        note.fields[self.conf.word_field:get_value()] = parsed_word
+        note.fields[conf.word_field:get_value()] = parsed_word
     end
     return note
 end

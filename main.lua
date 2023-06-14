@@ -3,24 +3,56 @@ local ButtonDialog = require("ui/widget/buttondialog")
 local CustomContextMenu = require("customcontextmenu")
 local DataStorage = require("datastorage")
 local DictQuickLookup = require("ui/widget/dictquicklookup")
+local InfoMessage = require("ui/widget/infomessage")
+local LuaSettings = require("luasettings")
 local MenuBuilder = require("menubuilder")
-local lfs = require("libs/libkoreader-lfs")
+local RadioButtonWidget = require("ui/widget/radiobuttonwidget")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
 local logger = require("logger")
 local util = require("util")
 local _ = require("gettext")
 
+local lfs = require("libs/libkoreader-lfs")
+local AnkiConnect = require("ankiconnect")
+local AnkiNote = require("ankinote")
+local Configuration = require("configuration")
+
 local AnkiWidget = Widget:extend {
-    -- this contains all the user configurable options
-    -- to access them: conf.xxx:get_value()
-    user_config = require("configwrapper")
+    known_document_profiles = LuaSettings:open(DataStorage:getSettingsDir() .. "/anki_profiles.lua"),
+    anki_note = nil,
+    anki_connect = nil,
 }
+
+function AnkiWidget:show_profiles_widget(opts)
+    local buttons = {}
+    for name, _ in pairs(Configuration.profiles) do
+        table.insert(buttons, { { text = name, provider = name, checked = Configuration:is_active(name) } })
+    end
+
+    self.profile_change_widget = RadioButtonWidget:new{
+        title_text = opts.title_text,
+        info_text = opts.info_text,
+        cancel_text = "Cancel",
+        ok_text = "Accept",
+        width_factor = 0.9,
+        radio_buttons = buttons,
+        callback = function(radio)
+            local profile = radio.provider:gsub(".lua$", "", 1)
+            Configuration:load_profile(profile)
+            self.profile_change_widget:onClose()
+            local _, file_name = util.splitFilePathName(self.ui.document.file)
+            self.known_document_profiles:saveSetting(file_name, profile)
+            opts.cb()
+        end,
+    }
+    UIManager:show(self.profile_change_widget)
+end
 
 function AnkiWidget:show_config_widget()
     local note_count = #self.anki_connect.local_notes
     local with_custom_tags_cb = function()
-        self.current_note:add_tags(self.user_config.custom_tags:get_value())
+        self.current_note:add_tags(Configuration.custom_tags:get_value())
         self.anki_connect:add_note(self.current_note)
         self.config_widget:onClose()
     end
@@ -43,6 +75,17 @@ function AnkiWidget:show_config_widget()
                     self.config_widget:onClose()
                 end
             }},
+            {{
+                text = "Change profile",
+                id = "profile_change",
+                callback = function()
+                    self:show_profiles_widget {
+                        title_text = "Change user profile",
+                        info_text  = "Use a different profile",
+                        cb = function() end
+                    }
+                end
+            }}
         },
     }
     UIManager:show(self.config_widget)
@@ -72,11 +115,10 @@ end
 -- ]]
 function AnkiWidget:addToMainMenu(menu_items)
     local builder = MenuBuilder:new{
-        user_config = self.user_config,
         extensions = self.extensions,
         ui = self.ui
     }
-    menu_items.anki_settings = { text = "Anki Settings", sub_item_table = builder:build() }
+    menu_items.anki_settings = { text = ("Anki Settings"), sub_item_table = builder:build() }
 end
 
 function AnkiWidget:load_extensions()
@@ -95,18 +137,15 @@ end
 
 -- This function is called automatically for all tables extending from Widget
 function AnkiWidget:init()
-    -- this contains all the logic for creating anki cards
-    self.anki_connect = require("ankiconnect"):new {
-        conf = self.user_config,
-        btn = self.add_to_anki_btn,
-        ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
-    }
     self:load_extensions()
-    self.anki_note = require("ankinote"):extend{
-        ext_modules = self.extensions,
-        conf = self.user_config,
+    self.anki_connect = AnkiConnect:new {
         ui = self.ui
     }
+    self.anki_note = AnkiNote:extend {
+        ui = self.ui,
+        ext_modules = self.extensions
+    }
+
     -- this holds the latest note created by the user!
     self.current_note = nil
 
@@ -146,14 +185,40 @@ function AnkiWidget:extend_doc_settings(filepath, document_properties)
     self.ui.document._anki_metadata = setmetatable(metadata, metadata_mt)
 end
 
+function AnkiWidget:set_profile(callback)
+    local _, file_name = util.splitFilePathName(self.ui.document.file)
+    local user_profile = self.known_document_profiles:readSetting(file_name)
+    if user_profile and Configuration.profiles[user_profile] then
+        local ok, err = pcall(Configuration.load_profile, Configuration, user_profile)
+        if not ok then
+            return UIManager:show(InfoMessage:new { text = ("Could not load profile %s: %s"):format(user_profile, err), timeout = 4 })
+        end
+        return callback()
+    end
+
+    local info_text = "Choose the profile to link with this document."
+    if user_profile then
+        info_text = ("Document was associated with the non-existing profile '%s'.\nPlease pick a different profile to link with this document."):format(user_profile)
+    end
+
+    self:show_profiles_widget {
+        title_text = "Set user profile",
+        info_text = info_text,
+        cb = function()
+            callback()
+        end
+    }
+end
+
 function AnkiWidget:handle_events()
     -- these all return false so that the event goes up the chain, other widgets might wanna react to these events
     self.onCloseWidget = function()
-        self.user_config:save()
+        self.known_document_profiles:close()
+        Configuration:save()
     end
 
     self.onSuspend = function()
-        self.user_config:save()
+        Configuration:save()
     end
 
     self.onNetworkConnected = function()
@@ -165,6 +230,7 @@ function AnkiWidget:handle_events()
     end
 
     self.onReaderReady = function(obj, doc_settings)
+        self.anki_connect:load_notes()
         -- Insert new button in the popup dictionary to allow adding anki cards
         -- TODO disable button if lookup was not contextual
         DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
@@ -173,12 +239,16 @@ function AnkiWidget:handle_events()
                 text = _("Add to Anki"),
                 font_bold = true,
                 callback = function()
-                    self.current_note = self.anki_note:new(popup_dict)
-                    self.anki_connect:add_note(self.current_note)
+                    self:set_profile(function()
+                        self.current_note = self.anki_note:new(popup_dict)
+                        self.anki_connect:add_note(self.current_note)
+                    end)
                 end,
                 hold_callback = function()
-                    self.current_note = self.anki_note:new(popup_dict)
-                    self:show_config_widget()
+                    self:set_profile(function()
+                        self.current_note = self.anki_note:new(popup_dict)
+                        self:show_config_widget()
+                    end)
                 end,
             }
             table.insert(buttons, 1, { self.add_to_anki_btn })
@@ -202,12 +272,16 @@ function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
         text = _("Add to Anki"),
         font_bold = true,
         callback = function()
-            self.current_note = self.anki_note:new(popup_dict)
-            self.anki_connect:add_note(self.current_note)
+            self:set_profile(function()
+                self.current_note = self.anki_note:new(popup_dict)
+                self.anki_connect:add_note(self.current_note)
+            end)
         end,
         hold_callback = function()
-            self.current_note = self.anki_note:new(popup_dict)
-            self:show_config_widget()
+            self:set_profile(function()
+                self.current_note = self.anki_note:new(popup_dict)
+                self:show_config_widget()
+            end)
         end,
     }
     table.insert(buttons, 1, { self.add_to_anki_btn })

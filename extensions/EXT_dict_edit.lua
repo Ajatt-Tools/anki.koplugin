@@ -1,3 +1,4 @@
+local conf = require("configuration")
 local DictEdit = {
     description = "This extension can be used to replace certain patterns in specific dictionaries.",
     enabled_dictionaries = {
@@ -15,11 +16,11 @@ function DictEdit:run(note)
     if not self.enabled_dictionaries[selected_dict] then
         return note
     end
-    local def = note.fields[self.def_field:get_value()]
+    local def = note.fields[conf.def_field:get_value()]
     for _,pattern in ipairs(self.patterns) do
         def = def:gsub(pattern, '')
     end
-    note.fields[self.def_field:get_value()] = def
+    note.fields[conf.def_field:get_value()] = def
     return note
 end
 
