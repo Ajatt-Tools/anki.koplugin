@@ -3,16 +3,21 @@ local CustomContextMenu = require("customcontextmenu")
 local DataStorage = require("datastorage")
 local DictQuickLookup = require("ui/widget/dictquicklookup")
 local MenuBuilder = require("menubuilder")
-local lfs = require("libs/libkoreader-lfs")
+local RadioButtonWidget = require("ui/widget/radiobuttonwidget")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
 local util = require("util")
 local _ = require("gettext")
 
+local lfs = require("libs/libkoreader-lfs")
+local AnkiConnect = require("ankiconnect")
+local AnkiNote = require("ankinote")
+local UserConfig = require("configwrapper")
+
 local AnkiWidget = Widget:extend {
     -- this contains all the user configurable options
     -- to access them: conf.xxx:get_value()
-    user_config = require("configwrapper")
+    user_config = UserConfig:new{}
 }
 
 function AnkiWidget:show_config_widget()
@@ -41,6 +46,34 @@ function AnkiWidget:show_config_widget()
                     self.config_widget:onClose()
                 end
             }},
+            {{
+                text = "Change profile",
+                id = "profile_change",
+                callback = function()
+                    local buttons, to_skip = {}, { ['.'] = true, ['..'] = true }
+                    for entry in lfs.dir("plugins/anki.koplugin/profiles") do
+                        if not to_skip[entry] then
+                            table.insert(buttons, { { text = entry, provider = entry, checked = self.active_profile == entry } })
+                        end
+                    end
+                    self.profile_change_widget = RadioButtonWidget:new{
+                        title_text = "Change user profile",
+                        info_text = "Use a different anki configuration",
+                        cancel_text = "Cancel",
+                        ok_text = "Accept",
+                        width_factor = 0.9,
+                        radio_buttons = buttons,
+                        callback = function(radio)
+                            local profile = radio.provider:gsub(".lua$", "", 1)
+                            local user_config = UserConfig:new { profile = profile }
+                            print("new profile: ", profile, user_config)
+                            self:load_profile(user_config)
+                            self.profile_change_widget:onClose()
+                        end,
+                    }
+                    UIManager:show(self.profile_change_widget)
+                end
+            }}
         },
     }
     UIManager:show(self.config_widget)
@@ -91,20 +124,23 @@ function AnkiWidget:load_extensions()
     table.sort(self.extensions)
 end
 
--- This function is called automatically for all tables extending from Widget
-function AnkiWidget:init()
-    -- this contains all the logic for creating anki cards
-    self.anki_connect = require("ankiconnect"):new {
-        conf = self.user_config,
-        btn = self.add_to_anki_btn,
-        ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
-    }
-    self:load_extensions()
-    self.anki_note = require("ankinote"):extend{
-        ext_modules = self.extensions,
-        conf = self.user_config,
+function AnkiWidget:load_profile(user_profile)
+    self.anki_connect = AnkiConnect:new {
+        conf = user_profile,
         ui = self.ui
     }
+    self:load_extensions()
+    self.anki_note = AnkiNote:extend {
+        ext_modules = self.extensions,
+        conf = user_profile,
+        ui = self.ui
+    }
+end
+
+-- This function is called automatically for all tables extending from Widget
+function AnkiWidget:init()
+    self:load_profile(self.user_config)
+
     -- this holds the latest note created by the user!
     self.current_note = nil
 

@@ -65,6 +65,7 @@ function AnkiConnect:get_request_error(http_return_code, request_data)
     end
 end
 
+-- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
 function AnkiConnect:set_forvo_audio(word, language)
     local field = self.conf.audio_field:get_value()
     if not field then
@@ -103,6 +104,7 @@ function AnkiConnect:set_image_data(img_path)
     return true, {
         data = data,
         filename = filename,
+        -- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
         fields = { field }
     }
 end
@@ -274,7 +276,9 @@ function AnkiConnect:load_notes()
             local note = json.decode(note_json)
             table.insert(self.local_notes, note)
             -- store unique identifier in local_notes tabel for basic duplicates check
-            self.local_notes[note.params.note.fields[self.conf.word_field:get_value()]] = true
+            -- TODO we cannot do this now that there are different profiles, the 'word_field' will not necessarily match with offline stored notes
+            -- since the actual value of this field can differ according to the profile used
+            --self.local_notes[note.params.note.fields[self.conf.word_field:get_value()]] = true
         end
     end)
     logger.dbg(string.format("AnkiConnect#get_offline_notes(): Loaded %d notes from disk.", #self.local_notes))
@@ -288,8 +292,6 @@ end
 -- ]]
 function AnkiConnect:new(opts)
     self.conf = opts.conf
-    -- reference to the button inserted on the dictionary popup window
-    self.btn = opts.btn
     -- NetworkMgr func is device dependent, assume it's true when not implemented.
     self.wifi_connected = NetworkMgr.isWifiOn and NetworkMgr:isWifiOn() or true
     -- contains notes which we could not sync yet
