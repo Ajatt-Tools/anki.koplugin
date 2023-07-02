@@ -198,6 +198,16 @@ function AnkiConnect:delete_latest_note()
     else
         table.remove(self.local_notes, #self.local_notes)
         self.local_notes[latest.id] = nil
+        local entries_on_disk = {}
+        u.open_file(self.notes_filename, 'r', function(f)
+            for line in f:lines() do
+                table.insert(entries_on_disk, line)
+            end
+        end)
+        table.remove(entries_on_disk)
+        u.open_file(self.notes_filename, 'w', function(f)
+            f:write(table.concat(entries_on_disk, '\n'))
+        end)
         self:show_popup(("Removed note (word: %s)"):format(latest.id), 3, true)
     end
     self.latest_synced_note = nil
