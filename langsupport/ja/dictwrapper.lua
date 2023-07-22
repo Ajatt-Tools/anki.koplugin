@@ -16,6 +16,17 @@ local function get_first_line(linestring)
     return start_idx and linestring:sub(1, start_idx + 1) or linestring
 end
 
+function DictEntryWrapper.extend_dictionaries(results, config)
+    local extended = {}
+    for idx,dict in ipairs(results) do
+        extended[idx] = DictEntryWrapper:new{
+            dict = dict,
+            conf = config
+        }
+    end
+    return extended
+end
+
 function DictEntryWrapper:new(opts)
     self.conf = opts.conf
 

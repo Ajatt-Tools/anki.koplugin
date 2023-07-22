@@ -2,6 +2,7 @@ local ButtonDialog = require("ui/widget/buttondialog")
 local CustomContextMenu = require("customcontextmenu")
 local DictQuickLookup = require("ui/widget/dictquicklookup")
 local MenuBuilder = require("menubuilder")
+local lfs = require("libs/libkoreader-lfs")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
 local util = require("util")
@@ -15,7 +16,6 @@ local AnkiWidget = Widget:extend {
 
 function AnkiWidget:show_config_widget()
     local note_count = #self.anki_connect.local_notes
-    local sync_message = string.format(string.format("Sync (%d) offline note(s)", note_count))
     local with_custom_tags_cb = function()
         self.current_note:add_tags(self.user_config.custom_tags:get_value())
         self.anki_connect:add_note(self.current_note)
@@ -24,7 +24,7 @@ function AnkiWidget:show_config_widget()
     self.config_widget = ButtonDialog:new {
         buttons = {
             {{ text = "Show parsed dictionary data", id = "preview", callback = function() self.anki_connect:display_preview(self.current_note) end }},
-            {{ text = sync_message, id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
+            {{ text = ("Sync (%d) offline note(s)"):format(note_count), id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
             {{ text = "Add with custom tags", id = "custom_tags", callback = with_custom_tags_cb }},
             {{
                 text = "Add with custom context",
@@ -84,7 +84,25 @@ function AnkiWidget:init()
         btn = self.add_to_anki_btn,
         ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
     }
+    local extensions = {}
+    local ext_dir = "plugins/anki.koplugin/extensions/"
+    for x in lfs.dir(ext_dir) do
+        table.insert(extensions, x)
+    end
+    table.sort(extensions, function(a, b) return a < b end)
+    local def_modifiers, note_modifiers = {}, {}
+    for _, ext_fn in ipairs(extensions) do
+        if ext_fn:match("definition_.*.lua") then
+            local def_chunk = assert(loadfile(ext_dir .. ext_fn))
+            table.insert(def_modifiers, def_chunk())
+        elseif ext_fn:match("note_.*.lua") then
+            local note_chunk = assert(loadfile(ext_dir .. ext_fn))
+            table.insert(note_modifiers, note_chunk())
+        end
+    end
     self.anki_note = require("ankinote"):extend{
+        definition_modifiers = def_modifiers,
+        note_modifiers = note_modifiers,
         conf = self.user_config,
         ui = self.ui
     }

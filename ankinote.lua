@@ -1,7 +1,6 @@
 local logger = require("logger")
 local util = require("util")
 local u = require("lua_utils/utils")
-local DictEntryWrapper = require("dictentrywrapper")
 
 local AnkiNote = {
     -- if true, save ALL dictionary entries returned for a given word
@@ -12,14 +11,6 @@ local AnkiNote = {
     mark_downstep = "<span style=\"display:inline-block;position:relative;padding-right:0.1em;margin-right:0.1em;\"><span style=\"display:inline;\">%s</span><span style=\"border-color:currentColor;display:block;user-select:none;pointer-events:none;position:absolute;top:0.1em;left:0;right:0;height:0;border-top-width:0.1em;border-top-style:solid;right:-0.1em;height:0.4em;border-right-width:0.1em;border-right-style:solid;\"></span></span>",
     unmarked_char = "<span style=\"display:inline-block;position:relative;\"><span style=\"display:inline;\">%s</span><span style=\"border-color:currentColor;\"></span></span>",
 }
-
-local function Set(data)
-    local set = {}
-    for _,v in pairs(util.splitToChars(data)) do
-        set[v] = true
-    end
-    return set
-end
 
 --[[
 -- Determine trimmed word context for consecutive lookups.
@@ -52,119 +43,6 @@ function AnkiNote:convert_to_HTML(opts)
         table.insert(list_items, opts.build(entry, entry_template))
     end
     return wrapper_template:format(opts.class, table.concat(list_items))
-end
-
--- [[
--- Convert a table of dictionaries to a single HTML <div> tag
--- ]]
-function AnkiNote:convert_dict_to_HTML(dictionaries)
-    local run_user_conversions = function(definition, converter)
-        if not converter then
-            return definition
-        end
-        if type(converter) == "table" then
-            for _,pattern_t in ipairs(converter) do
-                local pattern, replacement, count = unpack(pattern_t)
-                definition = definition:gsub(pattern, replacement or '', count)
-            end
-        elseif type(converter) == "function" then
-            definition = converter(definition)
-        end
-        return definition
-    end
-    return self:convert_to_HTML {
-        entries = dictionaries,
-        class = "definition",
-        build = function(entry, entry_template)
-            -- use user provided patterns to clean up dictionary definitions
-            local def, converter = entry.definition, self.dict_edit:get_value()[entry.dict]
-            def = run_user_conversions(def, converter)
-            if entry.is_html then -- try adding dict name to opening div tag (if present)
-                -- gsub wrapped in () so it only gives us the first result, and discards the index (2nd arg.)
-                return (def:gsub("(<div)( ?)", string.format("%%1 dict=\"%s\"%%2", entry.dict), 1))
-            end
-            return entry_template:format(entry.dict, (def:gsub("\n", "<br>")))
-        end
-    }
-end
-
-function AnkiNote:convert_pitch_to_HTML(accents, fields)
-    local converter = nil
-    if #accents == 0 then
-        converter = function(_) return nil end
-    elseif #accents == 1 then
-        converter = function(field) return accents[1][field] end
-    else
-        converter = function(field) return self:convert_to_HTML {
-            entries = accents,
-            class = "pitch",
-            build = function(accent) return string.format("<li>%s</li>", accent[field]) end
-        }
-        end
-    end
-    fields[self.p_a_num:get_value()] = converter("pitch_num")
-    fields[self.p_a_field:get_value()] = converter("pitch_accent")
-end
-
-function AnkiNote:get_pitch_accents(dict_result)
-    local morae = self:split_morae(dict_result:get_kana_words()[1])
-
-    local function _convert(downstep)
-        local pitch_visual = {}
-        local is_heiban = downstep == "0"
-        for idx, mora in ipairs(morae) do
-            local marking = nil
-            if is_heiban then
-                marking = idx == 1 and self.unmarked_char or self.mark_accented
-            else
-                if idx == tonumber(downstep) then
-                    marking = self.mark_downstep
-                else
-                    marking = idx < tonumber(downstep) and self.mark_accented or self.unmarked_char
-                end
-            end
-            -- when dealing with the downstep mora, we want the downstep to appear only on the last char of the mora
-            local is_downstep = marking == self.mark_downstep
-            logger.dbg("AnkiNote#get_pitch_accent(): determined marking for mora: ", idx, table.concat(mora), marking)
-            for _, ch in ipairs(mora) do
-                table.insert(pitch_visual, (is_downstep and self.mark_accented or marking):format(ch))
-            end
-            if is_downstep then
-                pitch_visual[#pitch_visual] = self.mark_downstep:format(mora[#mora])
-            end
-        end
-        return self.pitch_pattern:format(table.concat(pitch_visual))
-    end
-
-    local downstep_iter = dict_result:get_pitch_downsteps()
-    return function(iter)
-        local with_brackets, downstep = iter()
-        if downstep then
-            return with_brackets, _convert(downstep)
-        end
-    end, downstep_iter
-end
-
-function AnkiNote:split_morae(word)
-    local small_aeio = Set("ゅゃぃぇょゃ")
-    local morae = u.defaultdict(function() return {} end)
-    for _,ch in ipairs(util.splitToChars(word)) do
-        local is_small = small_aeio[ch] or false
-        table.insert(morae[is_small and #morae or #morae+1], ch)
-    end
-    logger.info(string.format("AnkiNote#split(): split word %s into %d morae: ", word, #morae))
-    return morae
-end
-
--- [[
--- Wrap a dictionary entry in another table, which adds extra functionality to it.
--- All original dictionary fields are still accessible
--- ]]
-function AnkiNote:extend_dict(dictionary_entry)
-    return DictEntryWrapper:new {
-        dict = dictionary_entry,
-        conf = self.conf
-    }
 end
 
 -- [[
@@ -206,7 +84,7 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
         self:init_context_buffer(self.context_size)
     end
 
-    local delims_map = Set("？」。.?!！")
+    local delims_map = u.to_set(util.splitToChars("？」。.?!！"))
     -- calculate the slice of the `prev_context_table` array that should be prepended to the lookupword
     local prev_idx, prev_s_idx = 0, 0
     while prev_s_idx < pre_s do
@@ -264,59 +142,51 @@ function AnkiNote:get_picture_context()
     end
 end
 
-function AnkiNote:build()
-    -- TODO: we should highlight the WHOLE word that was selected by the JP plugin
-    -- e.g. 垣間見える -> don't just select 垣間見
-    -- not sure this happens always but surely sometimes
-    local popup_wrapper = self:extend_dict(self.popup_dict.results[self.popup_dict.dict_index])
-    logger.info(string.format("AnkiNote#create_note(): (%d results), %s", #self.popup_dict.results, popup_wrapper:as_string()))
+function AnkiNote:run_extensions(note)
+    local definition = note.fields[self.def_field:get_value()]
+    for _, def_modifier in ipairs(self.definition_modifiers) do
+        definition = def_modifier(self, definition)
+    end
+    note.fields[self.def_field:get_value()] = definition
+    for _, note_modifier in ipairs(self.note_modifiers) do
+        note = note_modifier(self, note)
+    end
+    return note
+end
 
+function AnkiNote:get_word()
     -- TODO pick the kanji representation which matches the one we looked up
-    local word = popup_wrapper:get_kanji_words()[1] or popup_wrapper:get_kana_words()[1] or self.popup_dict.word
-    local fields = {
-        [self.context_field:get_value()] = self:get_word_context(),
-        [self.word_field:get_value()] = word,
-        [self.meta_field:get_value()] = self:get_metadata()
-    }
+    -- TODO make this into extension?
+    -- return popup_wrapper:get_kanji_words()[1] or popup_wrapper:get_kana_words()[1] or self.popup_dict.word
+    return self.popup_dict.word
+end
 
-    local pitch_accents = {}
-    -- map of note fields with all dictionary entries which should be combined and saved in said field
-    local field_dict_map = u.defaultdict(function() return {} end)
-    for idx, raw_result in ipairs(self.popup_dict.results) do
-        local result = self:extend_dict(raw_result)
-        -- don't add definitions where the dict word does not match the selected dict's word
-        -- e.g.: 罵る vs 罵り -> noun vs verb -> we only add defs for the one we selected
-        -- the info will be mostly the same, and the pitch accent might differ between noun and verb form
-        if popup_wrapper:get_kana_words():contains_any(result:get_kana_words()) then
-            logger.info(string.format("AnkiNote#create_note(): handling result: %s", result:as_string()))
-            local is_selected = idx == self.popup_dict.dict_index
-            local field = (is_selected or self.save_all_override) and self.def_field:get_value() or self.dict_field_map:get_value()[result.dict]
-            if field then
-                local field_defs = field_dict_map[field]
-                -- make sure that the selected dictionary is always inserted in the beginning
-                table.insert(field_defs, is_selected and 1 or #field_defs+1, result)
+function AnkiNote:get_definition()
+    return self:convert_to_HTML {
+        entries = { self.popup_dict.results[self.popup_dict.dict_index] },
+        class = "definition",
+        build = function(entry, entry_template)
+            local def = entry.definition
+            if entry.is_html then -- try adding dict name to opening div tag (if present)
+                -- gsub wrapped in () so it only gives us the first result, and discards the index (2nd arg.)
+                return (def:gsub("(<div)( ?)", string.format("%%1 dict=\"%s\"%%2", entry.dict), 1))
             end
-            for num, accent in self:get_pitch_accents(result) do
-                if not pitch_accents[num] then
-                    pitch_accents[num] = true -- add as k/v pair too so we can detect uniqueness
-                    table.insert(pitch_accents, { pitch_num = num, pitch_accent = accent })
-                end
-            end
-        else
-            local skip_msg = "Skipping %s dict entry: kana word '%s' ~= selected dict word '%s'"
-            logger.info(skip_msg:format(result.dict, result:get_kana_words(), popup_wrapper:get_kana_words()))
+            return entry_template:format(entry.dict, (def:gsub("\n", "<br>")))
         end
-    end
-    for field, dicts in pairs(field_dict_map) do
-        fields[field] = self:convert_dict_to_HTML(dicts)
-    end
-    -- this inserts the HTML-ified entries in fields directly
-    self:convert_pitch_to_HTML(pitch_accents, fields)
+    }
+end
 
+function AnkiNote:build()
+    local fields = {
+        [self.word_field:get_value()] = self:get_word(),
+        [self.context_field:get_value()] = self:get_word_context(),
+        [self.def_field:get_value()] = self:get_definition(),
+        [self.meta_field:get_value()] = self:get_metadata(),
+    }
     local note = {
-        -- The caller is responsible to fill in potential audio/image fields
-        -- the _modifiers table contains info on how to populate them
-        _modifiers = {
+        -- some fields require an internet connection, which we may not have at this point
+        -- all info needed to populate them is stored as a callback, which is called when a connection is available
+        _field_callbacks = {
             audio = { func = "set_forvo_audio", args = { word, self:get_language() } },
             picture = { func = "set_image_data", args = { self:get_picture_context() } },
         },
@@ -329,7 +199,8 @@ function AnkiNote:build()
         },
         tags = self.tags,
     }
-    return { action = "addNote", params = { note = note }, version = 6 }
+    local note_extended = self:run_extensions(note)
+    return { action = "addNote", params = { note = note_extended }, version = 6 }
 end
 
 function AnkiNote:get_language()
@@ -342,7 +213,7 @@ function AnkiNote:init_context_buffer(size)
     if self.prev_context_table and self.next_context_table then
         logger.info(("before reinit: prev table = %d, next table = %d"):format(#self.prev_context_table, #self.next_context_table))
     end
-    local skipped_chars = Set("\n\r")
+    local skipped_chars = u.to_set(util.splitToChars(("\n\r")))
     local prev_c, next_c = self.ui.highlight:getSelectedWordContext(size)
     -- pass trimmed word context along to be modified
     logger.info("look at word trim context real quick:", self.word_trim)
@@ -381,6 +252,9 @@ function AnkiNote:extend(opts)
     self.ui = opts.ui
     -- used to save screenshots in (CBZ only)
     self.settings_dir = opts.settings_dir
+    -- used to store extension functions to run
+    self.definition_modifiers = opts.definition_modifiers
+    self.note_modifiers = opts.note_modifiers
     return self
 end
 
