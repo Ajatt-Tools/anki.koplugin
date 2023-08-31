@@ -75,18 +75,6 @@ local menu_entries = {
         description = "Anki field to store metadata about the current book.",
     },
      {
-        id = "p_a_num",
-        group = note_settings,
-        name = "Pitch Downstep Field",
-        description = "Anki field to store Pitch Downstep data in.",
-    },
-     {
-        id = "p_a_field",
-        group = note_settings,
-        name = "Pitch Accent Field",
-        description = "Anki field to store Pitch Accent data in.",
-    },
-     {
         id = "audio_field",
         group = note_settings,
         name = "Forvo Audio Field",

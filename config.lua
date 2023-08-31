@@ -41,13 +41,6 @@ local Config = {
     -- This metadata is parsed from the EPUB's metadata, or from the filename
     meta_field = "Notes",
 
-    -- Some dictionaries contain pitch accent information, this info can be extracted with a Lua pattern, and stored in a specific field
-    -- This extracted info can be saved to the 2 fields below:
-    -- The field name where the pitch accent downstep number will be sent to.
-    p_a_num = "VocabPitchNum",
-    -- The field name where the pitch accent string will be sent to. This format is hardcoded currently.
-    p_a_field = "VocabPitchPattern",
-
     -- The plugin can query Forvo for audio of the word you just looked up.
     -- The field name where the audio will be sent to.
     audio_field = "VocabAudio",
