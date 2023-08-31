@@ -2,10 +2,18 @@
 -- When trying to make the monolingual transition, it can be helpful to create a card with the language
 -- in your target language, while still also inserting the definition in your native language in a separate field.
 -- This field can then be hidden if so desired, meaning you can just have it as a crutch.
+-- The dictionaries that should be stored in specific fields are listed in the `dict_field_map` variable below
 --]]
 
 local logger = require("logger")
 local u = require("lua_utils/utils")
+
+-- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
+-- value: field on the note this dictionary entry should be sent to
+local dict_field_map = {
+    -- the below example sends dictionary entries from 'JMdict'  to the field 'SentEng' on the anki note
+    -- ["JMdict Rev. 1.9"] = "SentEng",
+}
 
 local function convert_dict_to_HTML(self, dictionaries)
     -- TODO no more user conversion (not here at least)
@@ -56,7 +64,7 @@ return function(self, note)
         if selected_dict:get_kana_words():contains_any(result:get_kana_words()) then
             logger.info(string.format("note_multi_definition: handling result: %s", result:as_string()))
             local is_selected = idx == self.popup_dict.dict_index
-            local field = (is_selected or self.save_all_override) and self.def_field:get_value() or self.dict_field_map:get_value()[result.dict]
+            local field = is_selected and self.def_field:get_value() or dict_field_map[result.dict]
             if field then
                 local field_defs = field_dict_map[field]
                 -- make sure that the selected dictionary is always inserted in the beginning

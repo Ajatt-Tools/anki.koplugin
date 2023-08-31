@@ -36,7 +36,6 @@ local Config = {
     -- The field name where the dictionary definition will be sent to.
     def_field = "VocabDef",
 
-
     -- The field name where metadata (book source, page number, ...) will be sent to.
     -- This metadata is parsed from the EPUB's metadata, or from the filename
     meta_field = "Notes",
@@ -47,17 +46,6 @@ local Config = {
 
     -- This is currently unused.
     image_field = "Image",
-
-    ----------------------------------------------
-    ----- [[ DICTIONARY OVERRIDE OPTIONS ]] ------
-    ----------------------------------------------
-    -- It is possible to send specific dictionaries to specific fields on your note.
-    -- This can be useful if you want to send the English definition to a specific field.
-    dict_field_map = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: field on the note this dictionary entry should be sent to
-        ["JMdict Rev. 1.9"] = "SentEng",
-    },
 
     -- A pattern can be provided which for each dictionary extracts the kana reading(s) of the word which was looked up.
     -- This is used to determine which dictionary entries should be added to the card (e.g. 帰り vs 帰る: if the noun was selected, the verb is skipped)

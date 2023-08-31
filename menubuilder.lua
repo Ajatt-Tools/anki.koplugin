@@ -100,6 +100,7 @@ local menu_entries = {
         description = "lua Pattern which returns the Kanji reading(s) of a dictionary word",
         conf_type = "multitable",
     },
+    --[[ TODO: we may wanna move this to the extension and insert it back in the menu somehow
      {
         id = "dict_field_map",
         group = dictionary_settings,
@@ -109,6 +110,7 @@ local menu_entries = {
         default_values = function(menubuilder) return menubuilder.ui.dictionary.enabled_dict_names end,
         new_entry_value = "Note field to send the definition to",
     },
+    ]]
 }
 for i,x in ipairs(menu_entries) do menu_entries[x.id] = i end
 
