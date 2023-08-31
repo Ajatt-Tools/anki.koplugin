@@ -66,38 +66,5 @@ local Config = {
         ["JMdict Rev. 1.9"] = {"word", ".*"},
     },
 
-    -- The dictionary entry can be modified before it is stored on your anki note.
-    dict_edit = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: can be either a table or a function
-        -- * value (table): expected entry format { pattern, [replacement], [count] }. Multiple entries can be provided.
-        --     If no replacement is provided, the matched pattern is removed.
-        --     If no count is provided, all matches are replaced.
-        ["新明解国語辞典　第五版"] = {
-            -- replace pitch patterns occuring in definition
-            { '%[[0-9]%]' },
-            { '%[[0-9]%]:%[0-9%]' },
-        },
-        ["スーパー大辞林　3.0"] = {
-            -- replace pitch patterns occuring in definition
-            { '%[[0-9]%]' },
-            { '%[[0-9]%]:%[0-9%]' },
-        },
-        -- * function: function taking in the definition as an argument, and which should return the modified definition (see example below)
-        --[[ ["明鏡国語辞典　第一版"] = function(definition)
-            local newline_idx = definition:find('\n', 0, true)
-            local first_line = definition:sub(0, newline_idx or 0)
-            if #first_line == 0 then
-                return definition
-            end
-            local tags, tags_txt = {}, first_line:match("〘(.-)〙")
-            if not tags_txt then return definition end
-            local tag_fmt = '<small><span style="color:white;background:green;padding-left:3px;padding-right:3px;border-radius:0.5ex;">%s</span></small>'
-            for tag in require("util").gsplit(tags_txt, '・') do
-                table.insert(tags, tag_fmt:format(tag))
-            end
-            return definition:sub(#first_line+1) .. "<br>" .. table.concat(tags, '<font color="red"> | </font>')
-        end, --]]
-    }
 }
 return Config

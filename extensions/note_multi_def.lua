@@ -16,28 +16,12 @@ local dict_field_map = {
 }
 
 local function convert_dict_to_HTML(self, dictionaries)
-    -- TODO no more user conversion (not here at least)
-    local run_user_conversions = function(definition, converter)
-        if not converter then
-            return definition
-        end
-        if type(converter) == "table" then
-            for _,pattern_t in ipairs(converter) do
-                local pattern, replacement, count = unpack(pattern_t)
-                definition = definition:gsub(pattern, replacement or '', count)
-            end
-        elseif type(converter) == "function" then
-            definition = converter(definition)
-        end
-        return definition
-    end
     return self:convert_to_HTML {
         entries = dictionaries,
         class = "definition",
         build = function(entry, entry_template)
-            -- use user provided patterns to clean up dictionary definitions
-            local def, converter = entry.definition, self.dict_edit:get_value()[entry.dict]
-            def = run_user_conversions(def, converter)
+            -- TODO should we run the `definition_editor.lua` on this definition too?
+            local def = entry.definition
             if entry.is_html then -- try adding dict name to opening div tag (if present)
                 -- gsub wrapped in () so it only gives us the first result, and discards the index (2nd arg.)
                 return (def:gsub("(<div)( ?)", string.format("%%1 dict=\"%s\"%%2", entry.dict), 1))
