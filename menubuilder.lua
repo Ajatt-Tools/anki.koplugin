@@ -86,20 +86,6 @@ local menu_entries = {
         name = "Image Field",
         description = "Anki field to store image in (used for CBZ only).",
     },
-     {
-        id = "kana_pattern",
-        group = dictionary_settings,
-        name = "Kana Pattern",
-        description = "lua Pattern which returns the Kana reading of a dictionary word",
-        conf_type = "multitable",
-    },
-     {
-        id = "kanji_pattern",
-        group = dictionary_settings,
-        name = "Kanji Pattern",
-        description = "lua Pattern which returns the Kanji reading(s) of a dictionary word",
-        conf_type = "multitable",
-    },
     --[[ TODO: we may wanna move this to the extension and insert it back in the menu somehow
      {
         id = "dict_field_map",

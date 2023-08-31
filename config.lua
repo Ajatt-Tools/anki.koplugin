@@ -46,25 +46,5 @@ local Config = {
 
     -- This is currently unused.
     image_field = "Image",
-
-    -- A pattern can be provided which for each dictionary extracts the kana reading(s) of the word which was looked up.
-    -- This is used to determine which dictionary entries should be added to the card (e.g. 帰り vs 帰る: if the noun was selected, the verb is skipped)
-    kana_pattern = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: a table containing 2 entries:
-        -- 1) the dictionary field to look for the kana reading in (either 'word' or 'description')
-        -- 2) a pattern which should return the kana reading(s) (the pattern will be looked for multiple times!)
-        ["JMdict Rev. 1.9"] = {"definition", "<font color=\"green\">(.-)</font>"},
-    },
-    -- A pattern can be provided which for each dictionary extracts the kanji reading(s) of the word which was looked up.
-    -- This is used to store in the `word_field` defined above
-    kanji_pattern = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: a table containing 2 entries:
-        -- 1) the dictionary field to look for the kanji in (either 'word' or 'description')
-        -- 2) a pattern which should return the kanji
-        ["JMdict Rev. 1.9"] = {"word", ".*"},
-    },
-
 }
 return Config

@@ -1,3 +1,7 @@
+--[[
+-- This extension can be used to replace certain patterns in specific dictionaries.
+-- for each dict listed in `enabled_dictionaries`, all patterns in `patterns` are deleted
+--]]
 return function(self, definition)
     local enabled_dictionaries = {
         ["新明解国語辞典　第五版"] = true,

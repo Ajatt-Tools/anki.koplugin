@@ -9,7 +9,27 @@ DictEntryWrapper = {
     kanji_word_pattern = "【(.*)】",
     kanji_sep_chr = '・',
     pitch_downstep_pattern = "(%[([0-9])%])",
+    -- A pattern can be provided which for each dictionary extracts the kana reading(s) of the word which was looked up.
+    -- This is used to determine which dictionary entries should be added to the card (e.g. 帰り vs 帰る: if the noun was selected, the verb is skipped)
+    -- if no pattern is provided for a given dictionary, we fall back on the patterns listed above
+    kana_pattern = {
+        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
+        -- value: a table containing 2 entries:
+        -- 1) the dictionary field to look for the kana reading in (either 'word' or 'description')
+        -- 2) a pattern which should return the kana reading(s) (the pattern will be looked for multiple times!)
+        ["JMdict Rev. 1.9"] = {"definition", "<font color=\"green\">(.-)</font>"},
+    },
+    -- A pattern can be provided which for each dictionary extracts the kanji reading(s) of the word which was looked up.
+    -- This is used to store in the `word_field` defined above
+    kanji_pattern = {
+        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
+        -- value: a table containing 2 entries:
+        -- 1) the dictionary field to look for the kanji in (either 'word' or 'description')
+        -- 2) a pattern which should return the kanji
+        ["JMdict Rev. 1.9"] = {"word", ".*"},
+    }
 }
+
 
 local function get_first_line(linestring)
     local start_idx = linestring:find('\n', 1, true)
@@ -33,8 +53,8 @@ function DictEntryWrapper:new(opts)
     local index = function(table, k)
         return rawget(table, k) or rawget(self, k) or rawget(table.dictionary, k)
     end
-    local kana_dictionary_field, kana_pattern = unpack(self.conf.kana_pattern:get_value()[opts.dict.dict] or {})
-    local kanji_dictionary_field, kanji_pattern  = unpack(self.conf.kanji_pattern:get_value()[opts.dict.dict] or {})
+    local kana_dictionary_field, kana_pattern = unpack(self.kana_pattern[opts.dict.dict] or {})
+    local kanji_dictionary_field, kanji_pattern  = unpack(self.kanji_pattern[opts.dict.dict] or {})
     local data = {
         dictionary = opts.dict,
         kana_pattern = kana_pattern or self.kana_word_pattern,
