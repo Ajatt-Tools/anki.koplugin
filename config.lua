@@ -46,5 +46,15 @@ local Config = {
 
     -- This is currently unused.
     image_field = "Image",
+
+    -- list of extensions which should be enabled, by default they are all off
+    -- an extension is turned on by listing its filename in the table below
+    enabled_extensions = {
+        --[[
+        "definition_dict_edit.lua",
+        "note_multi_def.lua",
+        "note_pitch_accent.lua"
+        --]]
+    }
 }
 return Config

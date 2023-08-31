@@ -6,6 +6,7 @@ local lfs = require("libs/libkoreader-lfs")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
 local util = require("util")
+local u = require("lua_utils.utils")
 local _ = require("gettext")
 
 local AnkiWidget = Widget:extend {
@@ -85,9 +86,12 @@ function AnkiWidget:init()
         ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
     }
     local extensions = {}
+    local enabled_extensions = u.to_set(self.user_config.enabled_extensions:get_value())
     local ext_dir = "plugins/anki.koplugin/extensions/"
     for x in lfs.dir(ext_dir) do
-        table.insert(extensions, x)
+        if enabled_extensions[x] then
+            table.insert(extensions, x)
+        end
     end
     table.sort(extensions, function(a, b) return a < b end)
     local def_modifiers, note_modifiers = {}, {}
