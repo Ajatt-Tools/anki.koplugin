@@ -64,7 +64,7 @@ return function(self, note)
         if selected_dict:get_kana_words():contains_any(result:get_kana_words()) then
             logger.info(string.format("note_multi_definition: handling result: %s", result:as_string()))
             local is_selected = idx == self.popup_dict.dict_index
-            local field = is_selected and self.def_field:get_value() or dict_field_map[result.dict]
+            local field = is_selected and nil or dict_field_map[result.dict]
             if field then
                 local field_defs = field_dict_map[field]
                 -- make sure that the selected dictionary is always inserted in the beginning

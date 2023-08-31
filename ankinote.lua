@@ -185,7 +185,7 @@ function AnkiNote:build()
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
         _field_callbacks = {
-            audio = { func = "set_forvo_audio", args = { word, self:get_language() } },
+            audio = { func = "set_forvo_audio", args = { self:get_word(), self:get_language() } },
             picture = { func = "set_image_data", args = { self:get_picture_context() } },
         },
         deckName = self.deckName:get_value(),
