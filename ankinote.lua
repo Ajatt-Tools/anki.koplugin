@@ -152,13 +152,6 @@ function AnkiNote:run_extensions(note)
     return note
 end
 
-function AnkiNote:get_word()
-    -- TODO pick the kanji representation which matches the one we looked up
-    -- TODO make this into extension?
-    -- return popup_wrapper:get_kanji_words()[1] or popup_wrapper:get_kana_words()[1] or self.popup_dict.word
-    return self.popup_dict.word
-end
-
 function AnkiNote:get_definition()
     return self:convert_to_HTML {
         entries = { self.popup_dict.results[self.popup_dict.dict_index] },
@@ -176,7 +169,7 @@ end
 
 function AnkiNote:build()
     local fields = {
-        [self.word_field:get_value()] = self:get_word(),
+        [self.word_field:get_value()] = self.popup_dict.word,
         [self.context_field:get_value()] = self:get_word_context(),
         [self.def_field:get_value()] = self:get_definition(),
         [self.meta_field:get_value()] = self:get_metadata(),
@@ -185,7 +178,7 @@ function AnkiNote:build()
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
         _field_callbacks = {
-            audio = { func = "set_forvo_audio", args = { self:get_word(), self:get_language() } },
+            audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } },
             picture = { func = "set_image_data", args = { self:get_picture_context() } },
         },
         deckName = self.deckName:get_value(),
