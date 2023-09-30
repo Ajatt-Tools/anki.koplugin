@@ -5,16 +5,18 @@
 -- and stores it as a html representation and just the number in the 2 fields below.
 --]]
 
--- These 2 fields should be modified to point to the desired field on the card
-local field_pitch_html = 'VocabPitchPattern'
-local field_pitch_num = 'VocabPitchNum'
--- TODO should we be able to extract stuff in the menu from an extension?
 
 local logger = require("logger")
 local util = require("util")
 local u = require("lua_utils/utils")
 
-local function convert_pitch_to_HTML(self, accents)
+local PitchAccent = {
+    -- These 2 fields should be modified to point to the desired field on the card
+    field_pitch_html = 'VocabPitchPattern',
+    field_pitch_num = 'VocabPitchNum'
+}
+
+function PitchAccent:convert_pitch_to_HTML(accents)
     local converter = nil
     if #accents == 0 then
         converter = function(_) return nil end
@@ -31,19 +33,19 @@ local function convert_pitch_to_HTML(self, accents)
     return converter("pitch_num"), converter("pitch_accent")
 end
 
-local function split_morae(word)
+function PitchAccent:split_morae(word)
     local small_aeio = u.to_set(util.splitToChars("ゅゃぃぇょゃ"))
     local morae = u.defaultdict(function() return {} end)
     for _,ch in ipairs(util.splitToChars(word)) do
         local is_small = small_aeio[ch] or false
         table.insert(morae[is_small and #morae or #morae+1], ch)
     end
-    logger.info(string.format("AnkiNote#split(): split word %s into %d morae: ", word, #morae))
+    logger.info(("EXT: PitchAccent#split_morae(): split word %s into %d morae: "):format(word, #morae))
     return morae
 end
 
-local function get_pitch_accents(self, dict_result)
-    local morae = split_morae(dict_result:get_kana_words()[1])
+function PitchAccent:get_pitch_accents(dict_result)
+    local morae = self:split_morae(dict_result:get_kana_words()[1])
 
     local function _convert(downstep)
         local pitch_visual = {}
@@ -61,7 +63,7 @@ local function get_pitch_accents(self, dict_result)
             end
             -- when dealing with the downstep mora, we want the downstep to appear only on the last char of the mora
             local is_downstep = marking == self.mark_downstep
-            logger.dbg("AnkiNote#get_pitch_accent(): determined marking for mora: ", idx, table.concat(mora), marking)
+            logger.dbg("EXT: PitchAccent#get_pitch_accent(): determined marking for mora: ", idx, table.concat(mora), marking)
             for _, ch in ipairs(mora) do
                 table.insert(pitch_visual, (is_downstep and self.mark_accented or marking):format(ch))
             end
@@ -81,7 +83,7 @@ local function get_pitch_accents(self, dict_result)
     end, downstep_iter
 end
 
-return function(self, note)
+function PitchAccent:run(note)
     if not self.popup_dict.is_extended then
         self.popup_dict.results = require("langsupport/ja/dictwrapper").extend_dictionaries(self.popup_dict.results, self.conf)
         self.popup_dict.is_extended = true
@@ -91,7 +93,7 @@ return function(self, note)
     local pitch_accents = {}
     for idx, result in ipairs(self.popup_dict.results) do
         if selected:get_kana_words():contains_any(result:get_kana_words()) then
-            for num, accent in get_pitch_accents(self, result) do
+            for num, accent in self:get_pitch_accents(result) do
                 if not pitch_accents[num] then
                     pitch_accents[num] = true -- add as k/v pair too so we can detect uniqueness
                     table.insert(pitch_accents, { pitch_num = num, pitch_accent = accent })
@@ -99,8 +101,10 @@ return function(self, note)
             end
         end
     end
-    local pitch_num, pitch_accent = convert_pitch_to_HTML(self, pitch_accents)
-    note.fields[field_pitch_num] = pitch_num
-    note.fields[field_pitch_html] = pitch_accent
+    local pitch_num, pitch_accent = self:convert_pitch_to_HTML(pitch_accents)
+    note.fields[self.field_pitch_num] = pitch_num
+    note.fields[self.field_pitch_html] = pitch_accent
     return note
 end
+
+return PitchAccent

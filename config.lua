@@ -51,9 +51,10 @@ local Config = {
     -- an extension is turned on by listing its filename in the table below
     enabled_extensions = {
         --[[
-        "definition_dict_edit.lua",
-        "note_multi_def.lua",
-        "note_pitch_accent.lua"
+        "EXT_dict_edit.lua",
+        "EXT_dict_word_lookup.lua",
+        "EXT_multi_def.lua",
+        "EXT_pitch_accent.lua"
         --]]
     }
 }

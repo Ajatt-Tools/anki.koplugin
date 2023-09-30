@@ -141,13 +141,8 @@ function AnkiNote:get_picture_context()
 end
 
 function AnkiNote:run_extensions(note)
-    local definition = note.fields[self.def_field:get_value()]
-    for _, def_modifier in ipairs(self.definition_modifiers) do
-        definition = def_modifier(self, definition)
-    end
-    note.fields[self.def_field:get_value()] = definition
-    for _, note_modifier in ipairs(self.note_modifiers) do
-        note = note_modifier(self, note)
+    for _, extension in ipairs(self.extensions) do
+        note = extension:run(note)
     end
     return note
 end
@@ -231,6 +226,14 @@ function AnkiNote:add_tags(tags)
     end
 end
 
+-- each user extension gets access to the AnkiNote table as well
+function AnkiNote:load_extensions()
+    self.extensions = {}
+    for _,module in ipairs(self.ext_modules) do
+        table.insert(self.extensions, setmetatable(module, { __index = function(t, v) return rawget(t, v) or self[v] end }))
+    end
+end
+
 -- This function should be called before using the 'class' at all
 function AnkiNote:extend(opts)
     -- conf table is passed along to DictEntryWrapper
@@ -244,8 +247,7 @@ function AnkiNote:extend(opts)
     -- used to save screenshots in (CBZ only)
     self.settings_dir = opts.settings_dir
     -- used to store extension functions to run
-    self.definition_modifiers = opts.definition_modifiers
-    self.note_modifiers = opts.note_modifiers
+    self.ext_modules = opts.ext_modules
     return self
 end
 
@@ -267,6 +269,7 @@ function AnkiNote:new(popup_dict)
 
     local note = setmetatable(new, new_mt)
     note:set_word_trim()
+    note:load_extensions()
     -- TODO this can be delayed
     note:init_context_buffer(note.context_size)
     note:set_custom_context(1, 0, 1, 0)

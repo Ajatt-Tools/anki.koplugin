@@ -94,19 +94,15 @@ function AnkiWidget:init()
         end
     end
     table.sort(extensions, function(a, b) return a < b end)
-    local def_modifiers, note_modifiers = {}, {}
+    local ext_modules = {}
     for _, ext_fn in ipairs(extensions) do
-        if ext_fn:match("definition_.*.lua") then
-            local def_chunk = assert(loadfile(ext_dir .. ext_fn))
-            table.insert(def_modifiers, def_chunk())
-        elseif ext_fn:match("note_.*.lua") then
-            local note_chunk = assert(loadfile(ext_dir .. ext_fn))
-            table.insert(note_modifiers, note_chunk())
+        if ext_fn:match("EXT_.*.lua") then
+            local ext_module = assert(loadfile(ext_dir .. ext_fn))
+            table.insert(ext_modules, ext_module())
         end
     end
     self.anki_note = require("ankinote"):extend{
-        definition_modifiers = def_modifiers,
-        note_modifiers = note_modifiers,
+        ext_modules = ext_modules,
         conf = self.user_config,
         ui = self.ui
     }
