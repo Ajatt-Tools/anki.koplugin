@@ -47,4 +47,24 @@ function List:group_by(grouping_func)
     return self:new(grouped)
 end
 
+function List:add(item)
+    assert(self:get()[item] == nil, "Item already present!")
+    table.insert(self:get(), item)
+    self:get()[item] = true
+end
+
+function List:remove(item)
+    local index = nil
+    for idx,v in ipairs(self:get()) do
+        if v == item then
+            index = idx
+            break
+        end
+    end
+    if index then
+        table.remove(self:get(), index)
+        self:get()[item] = nil
+    end
+end
+
 return List

@@ -229,8 +229,12 @@ end
 -- each user extension gets access to the AnkiNote table as well
 function AnkiNote:load_extensions()
     self.extensions = {}
-    for _,module in ipairs(self.ext_modules) do
-        table.insert(self.extensions, setmetatable(module, { __index = function(t, v) return rawget(t, v) or self[v] end }))
+    local extension_set = u.to_set(self.enabled_extensions:get_value())
+    for _, ext_filename in ipairs(self.ext_modules) do
+        if extension_set[module] then
+            local module = self.ext_modules[ext_filename]
+            table.insert(self.extensions, setmetatable(module, { __index = function(t, v) return rawget(t, v) or self[v] end }))
+        end
     end
 end
 

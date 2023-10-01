@@ -72,9 +72,24 @@ end
 function AnkiWidget:addToMainMenu(menu_items)
     local builder = MenuBuilder:new{
         user_config = self.user_config,
+        extensions = self.extensions,
         ui = self.ui
     }
     menu_items.anki_settings = { text = "Anki Settings", sub_item_table = builder:build() }
+end
+
+function AnkiWidget:load_extensions()
+    self.extensions = {} -- contains filenames by numeric index, loaded modules by value
+    local ext_directory = "plugins/anki.koplugin/extensions/"
+
+    for file in lfs.dir(ext_directory) do
+        if file:match("EXT_.*%.lua") then
+            table.insert(self.extensions, file)
+            local ext_module = assert(loadfile(ext_directory .. file))
+            self.extensions[file] = ext_module
+        end
+    end
+    table.sort(self.extensions)
 end
 
 -- This function is called automatically for all tables extending from Widget
@@ -85,24 +100,9 @@ function AnkiWidget:init()
         btn = self.add_to_anki_btn,
         ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
     }
-    local extensions = {}
-    local enabled_extensions = u.to_set(self.user_config.enabled_extensions:get_value())
-    local ext_dir = "plugins/anki.koplugin/extensions/"
-    for x in lfs.dir(ext_dir) do
-        if enabled_extensions[x] then
-            table.insert(extensions, x)
-        end
-    end
-    table.sort(extensions, function(a, b) return a < b end)
-    local ext_modules = {}
-    for _, ext_fn in ipairs(extensions) do
-        if ext_fn:match("EXT_.*.lua") then
-            local ext_module = assert(loadfile(ext_dir .. ext_fn))
-            table.insert(ext_modules, ext_module())
-        end
-    end
+    self:load_extensions()
     self.anki_note = require("ankinote"):extend{
-        ext_modules = ext_modules,
+        ext_modules = self.extensions,
         conf = self.user_config,
         ui = self.ui
     }

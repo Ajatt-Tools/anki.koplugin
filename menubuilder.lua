@@ -86,6 +86,15 @@ local menu_entries = {
         name = "Image Field",
         description = "Anki field to store image in (used for CBZ only).",
     },
+    {
+        id = "enabled_extensions",
+        group = general_settings,
+        name = "Extensions",
+        description = "Custom scripts to modify created notes.",
+        conf_type = "checklist",
+        default_values = function(self) 
+            return self.extensions end,
+    },
     --[[ TODO: we may wanna move this to the extension and insert it back in the menu somehow
      {
         id = "dict_field_map",
@@ -187,6 +196,26 @@ function MenuConfigOpt:build_list_dialog()
     input_dialog:onShowKeyboard()
 end
 
+function MenuConfigOpt:build_checklist()
+    local menu_items = {}
+    for _, list_item in ipairs(self:default_values()) do
+        table.insert(menu_items, {
+            text = list_item,
+            checked_func = function() return List:new(self:get_value()):contains(list_item) end,
+            callback = function()
+                local l = List:new(self:get_value())
+                if l:contains(list_item) then
+                    l:remove(list_item)
+                else
+                    l:add(list_item)
+                end
+                self:update_value(l:get())
+            end
+        })
+    end
+    return menu_items
+end
+
 function MenuConfigOpt:build_map_dialog()
     local function is_enabled(k)
         return self:get_value()[k] ~= nil
@@ -250,6 +279,7 @@ end
 function MenuBuilder:new(opts)
     self.user_config = opts.user_config
     self.ui = opts.ui -- needed to get the enabled dictionaries
+    self.extensions = opts.extensions
     return self
 end
 
@@ -293,6 +323,8 @@ function MenuBuilder:convert_opt(opt)
         sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value()) end
     elseif opt.conf_type == "list" then
         sub_item_entry['callback'] = function() return opt:build_list_dialog() end
+    elseif opt.conf_type == "checklist" then
+        sub_item_entry['sub_item_table'] = opt:build_checklist()
     elseif opt.conf_type == "map" then
         sub_item_entry['sub_item_table'] = opt:build_map_dialog()
     else -- TODO multitable
