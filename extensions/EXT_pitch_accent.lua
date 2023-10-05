@@ -1,16 +1,13 @@
---[[
--- Some definitions contain pitch accent information.
--- e.g. さけ・ぶ [2]【叫ぶ】
--- this extension extracts the [2] from the definition's headword
--- and stores it as a html representation and just the number in the 2 fields below.
---]]
-
-
 local logger = require("logger")
 local util = require("util")
 local u = require("lua_utils/utils")
 
 local PitchAccent = {
+    description = [[
+Some definitions contain pitch accent information.
+e.g. さけ・ぶ [2]【叫ぶ】
+this extension extracts the [2] from the definition's headword and stores it as a html representation and/or a number.
+    ]],
     -- These 2 fields should be modified to point to the desired field on the card
     field_pitch_html = 'VocabPitchPattern',
     field_pitch_num = 'VocabPitchNum'

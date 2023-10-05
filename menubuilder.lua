@@ -1,4 +1,5 @@
 local UIManager = require("ui/uimanager")
+local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
@@ -92,8 +93,7 @@ local menu_entries = {
         name = "Extensions",
         description = "Custom scripts to modify created notes.",
         conf_type = "checklist",
-        default_values = function(self) 
-            return self.extensions end,
+        default_values = function(self) return self.extensions end,
     },
     --[[ TODO: we may wanna move this to the extension and insert it back in the menu somehow
      {
@@ -202,6 +202,9 @@ function MenuConfigOpt:build_checklist()
         table.insert(menu_items, {
             text = list_item,
             checked_func = function() return List:new(self:get_value()):contains(list_item) end,
+            hold_callback = function()
+                UIManager:show(InfoMessage:new { text = self.extensions[list_item].description, timeout = nil })
+            end,
             callback = function()
                 local l = List:new(self:get_value())
                 if l:contains(list_item) then

@@ -1,10 +1,6 @@
---[[
--- By default, the plugin saves the text selected to do the lookup in the `word_field`
--- This plugin modifies that behavior, by getting the word from the dictionary definition instead.
---
--- NOTE: this has Japanese specific logic
---]]
-local CustomWordLookup = {}
+local CustomWordLookup = {
+    description = "This plugin modifies the default addon behavior. Instead of saving the word selected in the book, it selects the headword in the dictionary entry itself."
+}
 
 function CustomWordLookup:run(note)
     if not self.popup_dict.is_extended then

@@ -1,12 +1,12 @@
 local ButtonDialog = require("ui/widget/buttondialog")
 local CustomContextMenu = require("customcontextmenu")
+local DataStorage = require("datastorage")
 local DictQuickLookup = require("ui/widget/dictquicklookup")
 local MenuBuilder = require("menubuilder")
 local lfs = require("libs/libkoreader-lfs")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
 local util = require("util")
-local u = require("lua_utils.utils")
 local _ = require("gettext")
 
 local AnkiWidget = Widget:extend {
@@ -80,12 +80,12 @@ end
 
 function AnkiWidget:load_extensions()
     self.extensions = {} -- contains filenames by numeric index, loaded modules by value
-    local ext_directory = "plugins/anki.koplugin/extensions/"
+    local ext_directory = DataStorage:getFullDataDir() .. "/plugins/anki.koplugin/extensions/"
 
     for file in lfs.dir(ext_directory) do
         if file:match("EXT_.*%.lua") then
             table.insert(self.extensions, file)
-            local ext_module = assert(loadfile(ext_directory .. file))
+            local ext_module = assert(loadfile(ext_directory .. file))()
             self.extensions[file] = ext_module
         end
     end

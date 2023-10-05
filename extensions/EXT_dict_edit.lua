@@ -1,8 +1,5 @@
---[[
--- This extension can be used to replace certain patterns in specific dictionaries.
--- for each dict listed in `enabled_dictionaries`, all patterns in `patterns` are deleted
---]]
 local DictEdit = {
+    description = "This extension can be used to replace certain patterns in specific dictionaries.",
     enabled_dictionaries = {
         ["新明解国語辞典　第五版"] = true,
         ["スーパー大辞林　3.0"] = true,
