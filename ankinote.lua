@@ -202,7 +202,6 @@ function AnkiNote:init_context_buffer(size)
     local skipped_chars = u.to_set(util.splitToChars(("\n\r")))
     local prev_c, next_c = self.ui.highlight:getSelectedWordContext(size)
     -- pass trimmed word context along to be modified
-    logger.info("look at word trim context real quick:", self.word_trim)
     prev_c = prev_c .. self.word_trim.before
     next_c = self.word_trim.after .. next_c
     self.prev_context_table = {}
@@ -231,7 +230,7 @@ function AnkiNote:load_extensions()
     self.extensions = {}
     local extension_set = u.to_set(self.enabled_extensions:get_value())
     for _, ext_filename in ipairs(self.ext_modules) do
-        if extension_set[module] then
+        if extension_set[ext_filename] then
             local module = self.ext_modules[ext_filename]
             table.insert(self.extensions, setmetatable(module, { __index = function(t, v) return rawget(t, v) or self[v] end }))
         end

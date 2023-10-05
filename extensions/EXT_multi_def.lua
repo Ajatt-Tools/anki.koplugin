@@ -1,14 +1,8 @@
---[[
--- When trying to make the monolingual transition, it can be helpful to create a card with the language
--- in your target language, while still also inserting the definition in your native language in a separate field.
--- This field can then be hidden if so desired, meaning you can just have it as a crutch.
--- The dictionaries that should be stored in specific fields are listed in the `dict_field_map` field.
---]]
-
 local logger = require("logger")
 local u = require("lua_utils/utils")
 
 local MultiDefinition = {
+    description = "When trying to make the monolingual transition, it can be helpful to create a card with the language in your target language, while still also inserting the definition in your native language in a separate field.",
     -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
     -- value: field on the note this dictionary entry should be sent to
     dict_field_map = {
