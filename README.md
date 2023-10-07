@@ -1,6 +1,6 @@
 # Anki plugin for KOReader
 
-KOReader plugin enabling Anki card generations for words looked up in the internal dictionary.
+KOReader plugin enabling Anki note generation for words looked up in the internal dictionary.
 
 ## Installation
 
@@ -37,49 +37,59 @@ KOReader plugin enabling Anki card generations for words looked up in the intern
 
 ## Usage
 
-When the plugin has been installed succesfully, there will be an extra button present on the reader's dictionary popup window, which allows the user to create an Anki card.
+When the plugin has been installed succesfully, there will be an extra button present on the reader's dictionary popup window, allowing the user to create an Anki note.
 
-When pressed, the add-on will try generating a card, using the selected dictionary entry.
 
 ![image](https://user-images.githubusercontent.com/34285115/228915515-b6d3eef6-d9e3-4899-9922-db040a29f2b3.png)
-![image](https://user-images.githubusercontent.com/34285115/226706999-0ad0f63f-c1f9-4bf1-af86-180e4acc0bca.png)
 
-### Features
-Based on the word selected and the dictionary popup, some extra info can be sent to specific fields on an anki note.
-The fields used are stored in `config.lua`. Each key mentioned below (e.g. `word_field`, `def_field`) is defined in this file.
+When pressed, the add-on will generate a note for the looked up word.
 
-#### Sentence context
-The plugin will parse the full sentence which the lookup word occurred in, this text can be sent to the `context_field`
-#### Audio
-The plugin will query Forvo to get audio for the lookupword, this audio can be stored in the `audio_field`
-#### Metadata
-The plugin will store some metadata about the document, this text can be sent to the `meta_field`.
+![image](https://github.com/Ajatt-Tools/anki.koplugin/assets/34285115/641bbb46-d23f-488f-9c1a-72c2e9db4125)
 
-The metadata is retrieved from the EPUB's metadata, or by parsing the filename with a Lua pattern (`"^%[([^%]]-)%]_(.-)_%[([^%]]-)%]%.[^%.]+"`)
+## Features
+The information extracted from the dictionary and book is sent to separate fields on the note.
+
+Below is a list of all fields, along with the configuration option that defines which field on your note it ends up on.
+The configuration options are stored in `config.lua`. Each key mentioned below (e.g. `word_field`, `def_field`) is defined in this file.
+
+
+#### Selected word (`word_field`)
+The word selected in the book.
+#### Sentence context (`context_field`)
+The full sentence that the word occured in, extracted from the book.
+
+The exact context stored can be modified by pressing and holding the 'Add to Anki' button, and choosing the 'custom context' entry on the menu that pops up.
+
+#### Dictionary definition (`def_field`)
+The dictionary entry that was selected when pressing the button.
+#### Audio (`audio_field`)
+The plugin will query Forvo to get audio for the lookupword. The language used is determined by the dictionary's language, or by the book's language as fallback.
+#### Metadata (`meta_field`)
+Some information about the book: author, title and page number.
+
+This info is retrieved from the EPUB's metadata, or by parsing the filename with a Lua pattern (`"^%[([^%]]-)%]_(.-)_%[([^%]]-)%]%.[^%.]+"`)
 
 The pattern expects filenames with the following format: `[Author]_Title_[extra_info].epub`. The extension can be anything.
 
-#### Dictionary options
-The plugin will send the word and definition of the currently selected dictionary to `word_field` and `def_field` respectively.
+### Offline usage
+When the e-reader can't save the card to Anki directly, because the WiFi connection is turned off, or the PC running Anki is unreachable, the created note is stored locally.
 
-On top of that, it is also possible to send certain dictionary entries to specific fields on the anki note. This can be helpful if you want to send monolingual dictionary definitions to one field, and bilingual ones to another field.
+The moment Anki is reachable again, the plugin will ask the user if they want to sync the notes stored locally. This can also be done manually by pressing and holding the 'Add to Anki' button and choosing the 'Sync offline notes' option.
 
-The dictionaries for which this should happen can be stored in `dict_field_map`.
+### Extra options
 
-##### Overwrite content of dictionary definition
-It's also possible to customize a dictionary's definition before storing it on a note. This can be done by providing a Lua pattern which should be replaced (or removed) from the definition. Another option is to provide a Lua function, taking the definition as a parameter, and which returns the new updated definition. 
+As mentioned earlier, when pressing and holding the 'Add to Anki' button, a separate menu is shown:
 
-Examples for both are present in `config.lua`
+![image](https://github.com/Ajatt-Tools/anki.koplugin/assets/34285115/932df377-c9fe-4083-8964-8536780b2920)
 
-#### Offline usage
-When the ereader's WiFi connection is turned off, or the PC where Anki is running on can't be reached, syncing the notes isn't possible.
-
-In this scenario, the notes will be stored in JSON format locally on the device. When the connection becomes available again, these notes can be synced.
-
-The plugin will notify the user when this is the case, prompting them to sync the notes. It's also possible to sync them manually by pressing and holding the 'Add to Anki' button. This will display an extra popup window with some extra options.
-
-![image](https://user-images.githubusercontent.com/34285115/226709541-878ea391-7cab-429b-9583-804852375cc3.png)
-
+##### Sync offline notes
+This option can be used to send the locally stored notes to Anki.
+##### Custom tags
+This allows the user to allows the user to create a card with custom tags, which are defined in `config.lua`
+##### Custom context
+By default, the complete sentence the word occured in is stored on the note. In cases where this is too little or too much context, the user can modify it by pressing this button. This pops up a menu where the exact amount of text can be selected.
+#### Undo latest note
+It's also possible to undo the creation of the latest card, which can be handy when deciding you want to add some extra context to the note.
 
 ## Configuration
 
