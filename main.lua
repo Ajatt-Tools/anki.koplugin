@@ -51,7 +51,7 @@ function AnkiWidget:show_config_widget()
                 id = "profile_change",
                 callback = function()
                     local buttons, to_skip = {}, { ['.'] = true, ['..'] = true }
-                    for entry in lfs.dir("plugins/anki.koplugin/profiles") do
+                    for entry in lfs.dir(DataStorage:getFullDataDir() .. "/plugins/anki.koplugin/profiles") do
                         if not to_skip[entry] then
                             table.insert(buttons, { { text = entry, provider = entry, checked = self.active_profile == entry } })
                         end
