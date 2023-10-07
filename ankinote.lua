@@ -160,10 +160,18 @@ end
 function AnkiNote:build()
     local fields = {
         [self.word_field:get_value()] = self.popup_dict.word,
-        [self.context_field:get_value()] = self:get_word_context(),
-        [self.def_field:get_value()] = self:get_definition(),
-        [self.meta_field:get_value()] = self:get_metadata(),
+        [self.def_field:get_value()] = self:get_definition()
     }
+    local optional_fields = {
+        [self.context_field] = function() return self:get_word_context() end,
+        [self.meta_field]    = function() return self:get_metadata() end,
+    }
+    for opt,fn in pairs(optional_fields) do
+        local field_name = opt:get_value()
+        if field_name then
+            fields[field_name] = fn()
+        end
+    end
     local note = {
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available

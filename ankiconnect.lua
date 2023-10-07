@@ -9,7 +9,6 @@ local Font = require("ui/font")
 local UIManager = require("ui/uimanager")
 local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
-local KeyValuePage = require("ui/widget/keyvaluepage")
 local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
 local forvo = require("forvo")
@@ -67,6 +66,10 @@ function AnkiConnect:get_request_error(http_return_code, request_data)
 end
 
 function AnkiConnect:set_forvo_audio(word, language)
+    local field = self.conf.audio_field:get_value()
+    if not field then
+        return true
+    end
     if not language then
         return false, "Could not determine language of word!"
     end
@@ -77,11 +80,15 @@ function AnkiConnect:set_forvo_audio(word, language)
     return true, forvo_url and {
         url = forvo_url,
         filename = string.format("forvo_%s.ogg", word),
-        fields = { self.conf.audio_field:get_value() }
+        fields = { field }
     } or nil
 end
 
 function AnkiConnect:set_image_data(img_path)
+    local field = self.conf.image_field:get_value()
+    if not field then
+        return true
+    end
     if not img_path then
         return true
     end
@@ -96,7 +103,7 @@ function AnkiConnect:set_image_data(img_path)
     return true, {
         data = data,
         filename = filename,
-        fields = { self.conf.image_field:get_value() }
+        fields = { field }
     }
 end
 

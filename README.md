@@ -95,10 +95,8 @@ It's also possible to undo the creation of the latest card, which can be handy w
 
 User configuration is stored in the `config.lua` file. Take care not to break the Lua syntax!
 
-Do not delete any keys (e.g. `word_field`, `kana_pattern`, ...) from the file. The plugin expects each key to be present, so stuff may break when  removed.
-
-If you don't want a certain note field or override option to be applied, leave the option blank (either the empty string `""` or an empty table `{}`).
-Fields which are not present on the chosen Anki note type, will be silently ignored, so they can also be left as-is.
+Do not remove any entries which are marked as REQUIRED in the explanatory comment. Doing so will cause the plugin to fail to load.
+Other entries can be safely omitted, any missing fields will not be generated.
 
 ### Edit configuration within KOreader
 There is code in place to create a menu, with which some of the fields can be edited on the reader itself. Adding an option in the KOreader's menu isn't possible from within a standalone plugin, but it can be done with a [user patch](https://github.com/koreader/koreader/wiki/User-patches).
