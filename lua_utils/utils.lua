@@ -113,4 +113,13 @@ function utils.is_numeric(str)
     return string.match(str, "^-?[%d%.]+$")
 end
 
+function utils.to_set(list)
+    local set = {}
+    for _,v in pairs(list) do
+        set[v] = true
+    end
+    return set
+end
+
+
 return utils

@@ -108,7 +108,7 @@ function AnkiConnect:sync_offline_notes()
 
     local synced, failed, errs = {}, {}, u.defaultdict(0)
     for _,note in ipairs(self.local_notes) do
-        local modifiers = note.params.note._modifiers
+        local modifiers = note.params.note._field_callbacks
         local mod_error = nil
         for param, mod in pairs(modifiers) do
             local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
@@ -120,14 +120,14 @@ function AnkiConnect:sync_offline_notes()
             note.params.note[param] = result_or_err
         end
         if not mod_error then
-            -- we have to remove the _modifiers field before saving the note so anki-connect doesn't complain
-            note.params.note._modifiers = nil
+            -- we have to remove the _field_callbacks field before saving the note so anki-connect doesn't complain
+            note.params.note._field_callbacks = nil
             local _, request_err = self:post_request(json.encode(note))
             if request_err then
                 mod_error = request_err
                 errs[mod_error] = errs[mod_error] + 1
-                -- if it failed we want reinsert the _modifiers field
-                note.params.note._modifiers = modifiers
+                -- if it failed we want reinsert the _field_callbacks field
+                note.params.note._field_callbacks = modifiers
             end
         end
         table.insert(mod_error and failed or synced, note)
@@ -231,14 +231,14 @@ function AnkiConnect:add_note(anki_note)
             end
         })
     end
-    for param, mod in pairs(note.params.note._modifiers) do
+    for param, mod in pairs(note.params.note._field_callbacks) do
         local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
         if not ok then
             return self:store_offline(note, result_or_err)
         end
         note.params.note[param] = result_or_err
     end
-    note.params.note._modifiers = nil
+    note.params.note._field_callbacks = nil
 
     local result, request_err = self:post_request(json.encode(note))
     if request_err then
@@ -271,25 +271,6 @@ function AnkiConnect:load_notes()
         end
     end)
     logger.dbg(string.format("AnkiConnect#get_offline_notes(): Loaded %d notes from disk.", #self.local_notes))
-end
-
-function AnkiConnect:display_preview(note)
-    local popup_dict = note.popup_dict
-    local dict = note:extend_dict(popup_dict.results[popup_dict.dict_index])
-    local kana, kanji = dict:get_kana_words(), dict:get_kanji_words()
-    local Foo = KeyValuePage:new{
-        lang = "ja",
-        title = "Info extracted from dictionary entry",
-        kv_pairs = {
-            { "Kana", kana:size() > 0 and kana or "N/A", callback = function()
-                self:show_popup(("Uses the `kana_pattern` config option.\nDictionary field: %s\nPattern: %s"):format(dict.kana_dict_field, dict.kana_pattern), 5, true) end },
-            {"Kanji", kanji:size() > 0 and kanji or "N/A", callback = function()
-                self:show_popup(("Uses the `kanji_pattern` config option.\nDictionary field: %s\nPattern: %s"):format(dict.kanji_dict_field, dict.kanji_pattern), 5, true) end },
-            -- single or more "-" will generate a solid line
-            "----------------------------",
-        },
-    }
-    UIManager:show(Foo)
 end
 
 -- [[

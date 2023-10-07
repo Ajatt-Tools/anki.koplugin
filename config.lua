@@ -36,17 +36,9 @@ local Config = {
     -- The field name where the dictionary definition will be sent to.
     def_field = "VocabDef",
 
-
     -- The field name where metadata (book source, page number, ...) will be sent to.
     -- This metadata is parsed from the EPUB's metadata, or from the filename
     meta_field = "Notes",
-
-    -- Some dictionaries contain pitch accent information, this info can be extracted with a Lua pattern, and stored in a specific field
-    -- This extracted info can be saved to the 2 fields below:
-    -- The field name where the pitch accent downstep number will be sent to.
-    p_a_num = "VocabPitchNum",
-    -- The field name where the pitch accent string will be sent to. This format is hardcoded currently.
-    p_a_field = "VocabPitchPattern",
 
     -- The plugin can query Forvo for audio of the word you just looked up.
     -- The field name where the audio will be sent to.
@@ -55,68 +47,15 @@ local Config = {
     -- This is currently unused.
     image_field = "Image",
 
-    ----------------------------------------------
-    ----- [[ DICTIONARY OVERRIDE OPTIONS ]] ------
-    ----------------------------------------------
-    -- It is possible to send specific dictionaries to specific fields on your note.
-    -- This can be useful if you want to send the English definition to a specific field.
-    dict_field_map = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: field on the note this dictionary entry should be sent to
-        ["JMdict Rev. 1.9"] = "SentEng",
-    },
-
-    -- A pattern can be provided which for each dictionary extracts the kana reading(s) of the word which was looked up.
-    -- This is used to determine which dictionary entries should be added to the card (e.g. 帰り vs 帰る: if the noun was selected, the verb is skipped)
-    kana_pattern = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: a table containing 2 entries:
-        -- 1) the dictionary field to look for the kana reading in (either 'word' or 'description')
-        -- 2) a pattern which should return the kana reading(s) (the pattern will be looked for multiple times!)
-        ["JMdict Rev. 1.9"] = {"definition", "<font color=\"green\">(.-)</font>"},
-    },
-    -- A pattern can be provided which for each dictionary extracts the kanji reading(s) of the word which was looked up.
-    -- This is used to store in the `word_field` defined above
-    kanji_pattern = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: a table containing 2 entries:
-        -- 1) the dictionary field to look for the kanji in (either 'word' or 'description')
-        -- 2) a pattern which should return the kanji
-        ["JMdict Rev. 1.9"] = {"word", ".*"},
-    },
-
-    -- The dictionary entry can be modified before it is stored on your anki note.
-    dict_edit = {
-        -- key: dictionary name as displayed in KOreader (received from dictionary's .ifo file)
-        -- value: can be either a table or a function
-        -- * value (table): expected entry format { pattern, [replacement], [count] }. Multiple entries can be provided.
-        --     If no replacement is provided, the matched pattern is removed.
-        --     If no count is provided, all matches are replaced.
-        ["新明解国語辞典　第五版"] = {
-            -- replace pitch patterns occuring in definition
-            { '%[[0-9]%]' },
-            { '%[[0-9]%]:%[0-9%]' },
-        },
-        ["スーパー大辞林　3.0"] = {
-            -- replace pitch patterns occuring in definition
-            { '%[[0-9]%]' },
-            { '%[[0-9]%]:%[0-9%]' },
-        },
-        -- * function: function taking in the definition as an argument, and which should return the modified definition (see example below)
-        --[[ ["明鏡国語辞典　第一版"] = function(definition)
-            local newline_idx = definition:find('\n', 0, true)
-            local first_line = definition:sub(0, newline_idx or 0)
-            if #first_line == 0 then
-                return definition
-            end
-            local tags, tags_txt = {}, first_line:match("〘(.-)〙")
-            if not tags_txt then return definition end
-            local tag_fmt = '<small><span style="color:white;background:green;padding-left:3px;padding-right:3px;border-radius:0.5ex;">%s</span></small>'
-            for tag in require("util").gsplit(tags_txt, '・') do
-                table.insert(tags, tag_fmt:format(tag))
-            end
-            return definition:sub(#first_line+1) .. "<br>" .. table.concat(tags, '<font color="red"> | </font>')
-        end, --]]
+    -- list of extensions which should be enabled, by default they are all off
+    -- an extension is turned on by listing its filename in the table below
+    enabled_extensions = {
+        --[[
+        "EXT_dict_edit.lua",
+        "EXT_dict_word_lookup.lua",
+        "EXT_multi_def.lua",
+        "EXT_pitch_accent.lua"
+        --]]
     }
 }
 return Config

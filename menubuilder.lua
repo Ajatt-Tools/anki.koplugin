@@ -1,4 +1,5 @@
 local UIManager = require("ui/uimanager")
+local InfoMessage = require("ui/widget/infomessage")
 local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
@@ -75,18 +76,6 @@ local menu_entries = {
         description = "Anki field to store metadata about the current book.",
     },
      {
-        id = "p_a_num",
-        group = note_settings,
-        name = "Pitch Downstep Field",
-        description = "Anki field to store Pitch Downstep data in.",
-    },
-     {
-        id = "p_a_field",
-        group = note_settings,
-        name = "Pitch Accent Field",
-        description = "Anki field to store Pitch Accent data in.",
-    },
-     {
         id = "audio_field",
         group = note_settings,
         name = "Forvo Audio Field",
@@ -98,20 +87,15 @@ local menu_entries = {
         name = "Image Field",
         description = "Anki field to store image in (used for CBZ only).",
     },
-     {
-        id = "kana_pattern",
-        group = dictionary_settings,
-        name = "Kana Pattern",
-        description = "lua Pattern which returns the Kana reading of a dictionary word",
-        conf_type = "multitable",
+    {
+        id = "enabled_extensions",
+        group = general_settings,
+        name = "Extensions",
+        description = "Custom scripts to modify created notes.",
+        conf_type = "checklist",
+        default_values = function(self) return self.extensions end,
     },
-     {
-        id = "kanji_pattern",
-        group = dictionary_settings,
-        name = "Kanji Pattern",
-        description = "lua Pattern which returns the Kanji reading(s) of a dictionary word",
-        conf_type = "multitable",
-    },
+    --[[ TODO: we may wanna move this to the extension and insert it back in the menu somehow
      {
         id = "dict_field_map",
         group = dictionary_settings,
@@ -121,6 +105,7 @@ local menu_entries = {
         default_values = function(menubuilder) return menubuilder.ui.dictionary.enabled_dict_names end,
         new_entry_value = "Note field to send the definition to",
     },
+    ]]
 }
 for i,x in ipairs(menu_entries) do menu_entries[x.id] = i end
 
@@ -211,6 +196,29 @@ function MenuConfigOpt:build_list_dialog()
     input_dialog:onShowKeyboard()
 end
 
+function MenuConfigOpt:build_checklist()
+    local menu_items = {}
+    for _, list_item in ipairs(self:default_values()) do
+        table.insert(menu_items, {
+            text = list_item,
+            checked_func = function() return List:new(self:get_value()):contains(list_item) end,
+            hold_callback = function()
+                UIManager:show(InfoMessage:new { text = self.extensions[list_item].description, timeout = nil })
+            end,
+            callback = function()
+                local l = List:new(self:get_value())
+                if l:contains(list_item) then
+                    l:remove(list_item)
+                else
+                    l:add(list_item)
+                end
+                self:update_value(l:get())
+            end
+        })
+    end
+    return menu_items
+end
+
 function MenuConfigOpt:build_map_dialog()
     local function is_enabled(k)
         return self:get_value()[k] ~= nil
@@ -274,6 +282,7 @@ end
 function MenuBuilder:new(opts)
     self.user_config = opts.user_config
     self.ui = opts.ui -- needed to get the enabled dictionaries
+    self.extensions = opts.extensions
     return self
 end
 
@@ -317,6 +326,8 @@ function MenuBuilder:convert_opt(opt)
         sub_item_entry['callback'] = function() return opt:update_value(not opt:get_value()) end
     elseif opt.conf_type == "list" then
         sub_item_entry['callback'] = function() return opt:build_list_dialog() end
+    elseif opt.conf_type == "checklist" then
+        sub_item_entry['sub_item_table'] = opt:build_checklist()
     elseif opt.conf_type == "map" then
         sub_item_entry['sub_item_table'] = opt:build_map_dialog()
     else -- TODO multitable

@@ -1,7 +1,9 @@
 local ButtonDialog = require("ui/widget/buttondialog")
 local CustomContextMenu = require("customcontextmenu")
+local DataStorage = require("datastorage")
 local DictQuickLookup = require("ui/widget/dictquicklookup")
 local MenuBuilder = require("menubuilder")
+local lfs = require("libs/libkoreader-lfs")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
 local util = require("util")
@@ -15,7 +17,6 @@ local AnkiWidget = Widget:extend {
 
 function AnkiWidget:show_config_widget()
     local note_count = #self.anki_connect.local_notes
-    local sync_message = string.format(string.format("Sync (%d) offline note(s)", note_count))
     local with_custom_tags_cb = function()
         self.current_note:add_tags(self.user_config.custom_tags:get_value())
         self.anki_connect:add_note(self.current_note)
@@ -23,8 +24,7 @@ function AnkiWidget:show_config_widget()
     end
     self.config_widget = ButtonDialog:new {
         buttons = {
-            {{ text = "Show parsed dictionary data", id = "preview", callback = function() self.anki_connect:display_preview(self.current_note) end }},
-            {{ text = sync_message, id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
+            {{ text = ("Sync (%d) offline note(s)"):format(note_count), id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
             {{ text = "Add with custom tags", id = "custom_tags", callback = with_custom_tags_cb }},
             {{
                 text = "Add with custom context",
@@ -71,9 +71,24 @@ end
 function AnkiWidget:addToMainMenu(menu_items)
     local builder = MenuBuilder:new{
         user_config = self.user_config,
+        extensions = self.extensions,
         ui = self.ui
     }
     menu_items.anki_settings = { text = "Anki Settings", sub_item_table = builder:build() }
+end
+
+function AnkiWidget:load_extensions()
+    self.extensions = {} -- contains filenames by numeric index, loaded modules by value
+    local ext_directory = DataStorage:getFullDataDir() .. "/plugins/anki.koplugin/extensions/"
+
+    for file in lfs.dir(ext_directory) do
+        if file:match("EXT_.*%.lua") then
+            table.insert(self.extensions, file)
+            local ext_module = assert(loadfile(ext_directory .. file))()
+            self.extensions[file] = ext_module
+        end
+    end
+    table.sort(self.extensions)
 end
 
 -- This function is called automatically for all tables extending from Widget
@@ -84,7 +99,9 @@ function AnkiWidget:init()
         btn = self.add_to_anki_btn,
         ui = self.ui, -- AnkiConnect helper class has no access to the UI by default, so add it here
     }
+    self:load_extensions()
     self.anki_note = require("ankinote"):extend{
+        ext_modules = self.extensions,
         conf = self.user_config,
         ui = self.ui
     }
