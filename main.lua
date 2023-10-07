@@ -24,7 +24,6 @@ function AnkiWidget:show_config_widget()
     end
     self.config_widget = ButtonDialog:new {
         buttons = {
-            {{ text = "Show parsed dictionary data", id = "preview", callback = function() self.anki_connect:display_preview(self.current_note) end }},
             {{ text = ("Sync (%d) offline note(s)"):format(note_count), id = "sync", enabled = note_count > 0, callback = function() self.anki_connect:sync_offline_notes() end }},
             {{ text = "Add with custom tags", id = "custom_tags", callback = with_custom_tags_cb }},
             {{

@@ -273,25 +273,6 @@ function AnkiConnect:load_notes()
     logger.dbg(string.format("AnkiConnect#get_offline_notes(): Loaded %d notes from disk.", #self.local_notes))
 end
 
-function AnkiConnect:display_preview(note)
-    local popup_dict = note.popup_dict
-    local dict = note:extend_dict(popup_dict.results[popup_dict.dict_index])
-    local kana, kanji = dict:get_kana_words(), dict:get_kanji_words()
-    local Foo = KeyValuePage:new{
-        lang = "ja",
-        title = "Info extracted from dictionary entry",
-        kv_pairs = {
-            { "Kana", kana:size() > 0 and kana or "N/A", callback = function()
-                self:show_popup(("Uses the `kana_pattern` config option.\nDictionary field: %s\nPattern: %s"):format(dict.kana_dict_field, dict.kana_pattern), 5, true) end },
-            {"Kanji", kanji:size() > 0 and kanji or "N/A", callback = function()
-                self:show_popup(("Uses the `kanji_pattern` config option.\nDictionary field: %s\nPattern: %s"):format(dict.kanji_dict_field, dict.kanji_pattern), 5, true) end },
-            -- single or more "-" will generate a solid line
-            "----------------------------",
-        },
-    }
-    UIManager:show(Foo)
-end
-
 -- [[
 -- required args:
 -- * url: to connect to remote AnkiConnect session
