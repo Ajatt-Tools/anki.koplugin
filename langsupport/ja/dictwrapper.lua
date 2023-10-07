@@ -8,7 +8,6 @@ DictEntryWrapper = {
     kana_word_pattern = "(.*)【.*】",
     kanji_word_pattern = "【(.*)】",
     kanji_sep_chr = '・',
-    pitch_downstep_pattern = "(%[([0-9])%])",
     -- A pattern can be provided which for each dictionary extracts the kana reading(s) of the word which was looked up.
     -- This is used to determine which dictionary entries should be added to the card (e.g. 帰り vs 帰る: if the noun was selected, the verb is skipped)
     -- if no pattern is provided for a given dictionary, we fall back on the patterns listed above
@@ -30,11 +29,6 @@ DictEntryWrapper = {
     }
 }
 
-
-local function get_first_line(linestring)
-    local start_idx = linestring:find('\n', 1, true)
-    return start_idx and linestring:sub(1, start_idx + 1) or linestring
-end
 
 function DictEntryWrapper.extend_dictionaries(results, config)
     local extended = {}
@@ -92,11 +86,6 @@ function DictEntryWrapper:get_kanji_words()
         table.insert(kanji_entries, table.concat(current))
     end
     return List:new(kanji_entries)
-end
-
-function DictEntryWrapper:get_pitch_downsteps()
-    -- only look for pitch pattern in first line of defition ( TODO this could be configurable )
-    return string.gmatch(get_first_line(self.dictionary.definition), self.pitch_downstep_pattern)
 end
 
 function DictEntryWrapper:as_string()

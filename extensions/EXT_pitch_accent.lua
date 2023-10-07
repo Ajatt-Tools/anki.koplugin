@@ -17,6 +17,7 @@ this extension extracts the [2] from the definition's headword and stores it as 
     mark_accented = "<span style=\"display:inline-block;position:relative;\"><span style=\"display:inline;\">%s</span><span style=\"border-color:currentColor;display:block;user-select:none;pointer-events:none;position:absolute;top:0.1em;left:0;right:0;height:0;border-top-width:0.1em;border-top-style:solid;\"></span></span>",
     mark_downstep = "<span style=\"display:inline-block;position:relative;padding-right:0.1em;margin-right:0.1em;\"><span style=\"display:inline;\">%s</span><span style=\"border-color:currentColor;display:block;user-select:none;pointer-events:none;position:absolute;top:0.1em;left:0;right:0;height:0;border-top-width:0.1em;border-top-style:solid;right:-0.1em;height:0.4em;border-right-width:0.1em;border-right-style:solid;\"></span></span>",
     unmarked_char = "<span style=\"display:inline-block;position:relative;\"><span style=\"display:inline;\">%s</span><span style=\"border-color:currentColor;\"></span></span>",
+    pitch_downstep_pattern = "(%[([0-9])%])",
 }
 
 function PitchAccent:convert_pitch_to_HTML(accents)
@@ -47,13 +48,29 @@ function PitchAccent:split_morae(word)
     return morae
 end
 
+local function get_first_line(linestring)
+    local start_idx = linestring:find('\n', 1, true)
+    return start_idx and linestring:sub(1, start_idx + 1) or linestring
+end
+
+function PitchAccent:get_pitch_downsteps(dict_result)
+    return string.gmatch(get_first_line(dict_result.definition), self.pitch_downstep_pattern)
+end
+
+
 function PitchAccent:get_pitch_accents(dict_result)
-    local morae = self:split_morae(dict_result:get_kana_words()[1])
+    local _morae = nil
+    local function get_morae()
+        if not _morae then
+            _morae = self:split_morae(dict_result:get_kana_words()[1])
+        end
+        return _morae
+    end
 
     local function _convert(downstep)
         local pitch_visual = {}
         local is_heiban = downstep == "0"
-        for idx, mora in ipairs(morae) do
+        for idx, mora in ipairs(get_morae()) do
             local marking = nil
             if is_heiban then
                 marking = idx == 1 and self.unmarked_char or self.mark_accented
@@ -77,7 +94,7 @@ function PitchAccent:get_pitch_accents(dict_result)
         return self.pitch_pattern:format(table.concat(pitch_visual))
     end
 
-    local downstep_iter = dict_result:get_pitch_downsteps()
+    local downstep_iter = self:get_pitch_downsteps(dict_result)
     return function(iter)
         local with_brackets, downstep = iter()
         if downstep then
@@ -94,7 +111,7 @@ function PitchAccent:run(note)
     local selected = self.popup_dict.results[self.popup_dict.dict_index]
 
     local pitch_accents = {}
-    for idx, result in ipairs(self.popup_dict.results) do
+    for _, result in ipairs(self.popup_dict.results) do
         if selected:get_kana_words():contains_any(result:get_kana_words()) then
             for num, accent in self:get_pitch_accents(result) do
                 if not pitch_accents[num] then
