@@ -13,6 +13,7 @@ local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
 local forvo = require("forvo")
 local u = require("lua_utils/utils")
+local conf = require("configwrapper")
 
 local AnkiConnect = {
     settings_dir = DataStorage:getSettingsDir(),
@@ -29,7 +30,7 @@ function AnkiConnect:is_running()
     if not self.wifi_connected then
         return false, "WiFi disconnected."
     end
-    local result, code, headers = self:with_timeout(1, function() return http.request(self.conf.url:get_value()) end)
+    local result, code, headers = self:with_timeout(1, function() return http.request(conf.url:get_value()) end)
     logger.dbg(string.format("AnkiConnect#is_running = code: %s, headers: %s, result: %s", code, headers, result))
     return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
 end
@@ -38,7 +39,7 @@ function AnkiConnect:post_request(json_payload)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request
     local request = {
-        url = self.conf.url:get_value(),
+        url = conf.url:get_value(),
         method = "POST",
         headers = {
             ["Content-Type"] = "application/json",
@@ -67,7 +68,7 @@ end
 
 -- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
 function AnkiConnect:set_forvo_audio(word, language)
-    local field = self.conf.audio_field:get_value()
+    local field = conf.audio_field:get_value()
     if not field then
         return true
     end
@@ -86,7 +87,7 @@ function AnkiConnect:set_forvo_audio(word, language)
 end
 
 function AnkiConnect:set_image_data(img_path)
-    local field = self.conf.image_field:get_value()
+    local field = conf.image_field:get_value()
     if not field then
         return true
     end
@@ -145,7 +146,7 @@ function AnkiConnect:sync_offline_notes()
     local failed_as_json = {}
     for _,note in ipairs(failed) do
         table.insert(failed_as_json, json.encode(note))
-        local id = note.params.note.fields[self.conf.word_field:get_value()]
+        local id = note.params.note.fields[conf.word_field:get_value()]
         self.local_notes[id] = true
     end
     -- called even when there's no failed notes, this way it also gets rid of the notes which we managed to sync, no need to keep those around
@@ -259,7 +260,7 @@ end
 
 function AnkiConnect:store_offline(note, reason, show_always)
     -- word stored as key as well so we can have a simple duplicate check for offline notes
-    local id = note.params.note.fields[self.conf.word_field:get_value()]
+    local id = note.params.note.fields[conf.word_field:get_value()]
     if self.local_notes[id] then
         return self:show_popup("Cannot store duplicate note offline!", 3, true)
     end
@@ -278,7 +279,7 @@ function AnkiConnect:load_notes()
             -- store unique identifier in local_notes tabel for basic duplicates check
             -- TODO we cannot do this now that there are different profiles, the 'word_field' will not necessarily match with offline stored notes
             -- since the actual value of this field can differ according to the profile used
-            --self.local_notes[note.params.note.fields[self.conf.word_field:get_value()]] = true
+            --self.local_notes[note.params.note.fields[conf.word_field:get_value()]] = true
         end
     end)
     logger.dbg(string.format("AnkiConnect#get_offline_notes(): Loaded %d notes from disk.", #self.local_notes))

@@ -4,6 +4,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
 local List = require("lua_utils.list")
+local user_config = require("configwrapper")
 
 local general_settings = { "generic_settings", "General Settings" }
 local note_settings = { "note_settings", "Anki Note Settings" }
@@ -122,7 +123,7 @@ function MenuConfigOpt:new(o)
     for k,v in pairs(o.menu_entry) do new_[k] = v end
     local function index(t, k)
         return rawget(t, k) or self[k]
-            or o.user_conf[k] -- necessary to be able to call opt:get_value()
+            or rawget(o.user_conf, k) -- necessary to be able to call opt:get_value()
             or MenuBuilder[k] -- necessary to get access to ui (passed in via menubuilder)
     end
     return setmetatable(new_, { __index = index })
@@ -280,7 +281,6 @@ function MenuConfigOpt:build_map_dialog()
 end
 
 function MenuBuilder:new(opts)
-    self.user_config = opts.user_config
     self.ui = opts.ui -- needed to get the enabled dictionaries
     self.extensions = opts.extensions
     return self
@@ -288,7 +288,7 @@ end
 
 function MenuBuilder:build()
     local menu_options = {}
-    for id, user_conf in pairs(self.user_config) do
+    for id, user_conf in pairs(user_config.current_profile) do
         local idx = menu_entries[id]
         local entry = menu_entries[idx]
         if entry then
