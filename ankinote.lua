@@ -42,9 +42,6 @@ end
 -- Create metadata string about the document the word came from.
 -- ]]
 function AnkiNote:get_metadata()
-    if not self.ui.document then
-        return
-    end
     local meta = self.ui.document._anki_metadata
     return string.format("%s - %s (%d/%d)", meta.author, meta.title, meta:current_page(), meta.pages)
 end
@@ -126,9 +123,6 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
 end
 
 function AnkiNote:get_picture_context()
-    if not self.ui.document then
-        return
-    end
     local meta = self.ui.document._anki_metadata
     if not meta then
         return
@@ -271,7 +265,7 @@ function AnkiNote:new(popup_dict)
         selected_dict = popup_dict.results[popup_dict.dict_index],
         -- indicates that popup_dict relates to word in book
         -- this can still be set to false later when the user looks up a word in a book, but then modifies the looked up word
-        contextual_lookup = self.ui.highlight and self.ui.highlight.selected_text ~= nil,
+        contextual_lookup = self.ui.highlight.selected_text ~= nil,
         word_trim = { before = "", after = "" },
         tags = { "KOReader" },
     }
