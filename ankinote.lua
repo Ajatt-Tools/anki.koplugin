@@ -264,7 +264,8 @@ function AnkiNote:new(popup_dict)
         popup_dict = popup_dict,
         selected_dict = popup_dict.results[popup_dict.dict_index],
         -- indicates that popup_dict relates to word in book
-        contextual_lookup = true,
+        -- this can still be set to false later when the user looks up a word in a book, but then modifies the looked up word
+        contextual_lookup = self.ui.highlight.selected_text ~= nil,
         word_trim = { before = "", after = "" },
         tags = { "KOReader" },
     }
@@ -277,8 +278,10 @@ function AnkiNote:new(popup_dict)
     note:set_word_trim()
     note:load_extensions()
     -- TODO this can be delayed
-    note:init_context_buffer(note.context_size)
-    note:set_custom_context(1, 0, 1, 0)
+    if note.contextual_lookup then
+        note:init_context_buffer(note.context_size)
+        note:set_custom_context(1, 0, 1, 0)
+    end
     return note
 end
 
