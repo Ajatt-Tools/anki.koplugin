@@ -110,24 +110,6 @@ function AnkiWidget:init()
 
     self.ui.menu:registerToMainMenu(self)
     self:handle_events()
-    -- Insert new button in the popup dictionary to allow adding anki cards
-    -- TODO disable button if lookup was not contextual
-    DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
-        self.add_to_anki_btn = {
-            id = "add_to_anki",
-            text = _("Add to Anki"),
-            font_bold = true,
-            callback = function()
-                self.current_note = self.anki_note:new(popup_dict)
-                self.anki_connect:add_note(self.current_note)
-            end,
-            hold_callback = function()
-                self.current_note = self.anki_note:new(popup_dict)
-                self:show_config_widget()
-            end,
-        }
-        table.insert(buttons, 1, { self.add_to_anki_btn })
-    end
 end
 
 function AnkiWidget:extend_doc_settings()
@@ -181,6 +163,24 @@ function AnkiWidget:handle_events()
     end
 
     self.onReaderReady = function()
+        -- Insert new button in the popup dictionary to allow adding anki cards
+        -- TODO disable button if lookup was not contextual
+        DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
+            self.add_to_anki_btn = {
+                id = "add_to_anki",
+                text = _("Add to Anki"),
+                font_bold = true,
+                callback = function()
+                    self.current_note = self.anki_note:new(popup_dict)
+                    self.anki_connect:add_note(self.current_note)
+                end,
+                hold_callback = function()
+                    self.current_note = self.anki_note:new(popup_dict)
+                    self:show_config_widget()
+                end,
+            }
+            table.insert(buttons, 1, { self.add_to_anki_btn })
+        end
         self:extend_doc_settings()
     end
 end
