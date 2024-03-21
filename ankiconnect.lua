@@ -271,13 +271,14 @@ end
 function AnkiConnect:load_notes()
     u.open_file(self.notes_filename, 'r', function(f)
         for note_json in f:lines() do
-            local note = json.decode(note_json)
+            local note, err = json.decode(note_json)
+            assert(note, ("Could not parse note '%s': %s"):format(note_json, err))
             table.insert(self.local_notes, note)
             -- store unique identifier in local_notes tabel for basic duplicates check
             self.local_notes[note.params.note.fields[self.conf.word_field:get_value()]] = true
         end
     end)
-    logger.dbg(string.format("AnkiConnect#get_offline_notes(): Loaded %d notes from disk.", #self.local_notes))
+    logger.dbg(string.format("Loaded %d notes from disk.", #self.local_notes))
 end
 
 -- [[
