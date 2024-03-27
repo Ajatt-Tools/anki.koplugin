@@ -180,6 +180,7 @@ function AnkiConnect:show_popup(text, timeout, show_always)
     if not (show_always or false) and self.last_message_text == text then
         return
     end
+    logger.info(("Displaying popup with message: '%s'"):format(text))
     self.last_message_text = text
     UIManager:show(InfoMessage:new { text = text, timeout = timeout })
 end
