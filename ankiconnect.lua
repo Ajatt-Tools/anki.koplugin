@@ -213,7 +213,10 @@ function AnkiConnect:delete_latest_note()
         end)
         table.remove(entries_on_disk)
         u.open_file(self.notes_filename, 'w', function(f)
-            f:write(table.concat(entries_on_disk, '\n') .. '\n')
+            f:write(table.concat(entries_on_disk, '\n'))
+            if #entries_on_disk > 0 then
+                f:write('\n')
+            end
         end)
         self:show_popup(("Removed note (word: %s)"):format(latest.id), 3, true)
     end
