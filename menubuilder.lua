@@ -287,6 +287,10 @@ function MenuBuilder:new(opts)
 end
 
 function MenuBuilder:build()
+    if not user_config.current_profile then
+        -- TODO it would be nice if you could select all profiles and allow editing them
+        return {}
+    end
     local menu_options = {}
     for id, user_conf in pairs(user_config.current_profile) do
         local idx = menu_entries[id]

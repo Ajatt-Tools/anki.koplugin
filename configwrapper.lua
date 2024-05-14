@@ -31,7 +31,7 @@ local Config = {
     current_profile = nil,
 }
 local Config_mt = {
-    __index = function(t, v) return rawget(t, v) or rawget(Config, 'current_profile')[v] end
+    __index = function(t, v) return rawget(t, v) or (rawget(Config,'current_profile') and rawget(rawget(Config, 'current_profile'), v) or nil) end
 }
 
 function Config:init(user_module)

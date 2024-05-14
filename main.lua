@@ -16,6 +16,7 @@ local AnkiNote = require("ankinote")
 local UserConfig = require("configwrapper")
 
 local AnkiWidget = Widget:extend {
+    -- TODO i'm starting to think I should get rid of the ./settings completely, just overwrite the actual config
     known_document_profiles = LuaSettings:open(DataStorage:getSettingsDir() .. "/anki_profiles.lua"),
     anki_note = nil,
     anki_connect = nil,
