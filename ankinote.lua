@@ -82,6 +82,8 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
     local prev_idx, prev_s_idx = 0, 0
     while prev_s_idx < pre_s do
         if #self.prev_context_table <= prev_idx then expand_content() end
+        -- if we're still out of bounds after expanding content we're at the beginning of the doc
+        if #self.prev_context_table <= prev_idx then break end
         local idx = #self.prev_context_table - prev_idx
         local ch = self.prev_context_table[idx]
         assert(ch ~= nil, ("Something went wrong when parsing previous context! idx: %d, context_table size: %d"):format(idx, #self.prev_context_table))
@@ -104,6 +106,8 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
     local next_idx, next_s_idx = 1, 0
     while next_s_idx < post_s do
         if next_idx > #self.next_context_table then expand_content() end
+        -- if we're still out of bounds after expanding content we're at the end of the doc
+        if next_idx > #self.next_context_table then break end
         local ch = self.next_context_table[next_idx]
         assert(ch ~= nil, ("Something went wrong when parsing next context! idx: %d, context_table size: %d"):format(next_idx, #self.next_context_table))
         if delims_map[ch] then
