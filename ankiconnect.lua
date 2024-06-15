@@ -70,9 +70,6 @@ function AnkiConnect:set_forvo_audio(word, language)
     if not field then
         return true
     end
-    if not language then
-        return false, "Could not determine language of word!"
-    end
     local ok, forvo_url = forvo.get_pronunciation_url(word, language)
     if not ok then
         return false, "Could not connect to forvo."
@@ -225,7 +222,10 @@ function AnkiConnect:delete_latest_note()
 end
 
 function AnkiConnect:add_note(anki_note)
-    local note = anki_note:build()
+    local ok, note = pcall(anki_note.build, anki_note)
+    if not ok then
+        return self:show_popup(string.format("Error while creating note:\n\n%s", note), 10, true)
+    end
 
     local can_sync, err = self:is_running()
     if not can_sync then
@@ -253,9 +253,10 @@ function AnkiConnect:add_note(anki_note)
 
     local result, request_err = self:post_request(json.encode(note))
     if request_err then
-        return self:show_popup(string.format("Couldn't synchronize note: %s!", request_err), 3, true)
+        return self:show_popup(string.format("Error while synchronizing note:\n\n%s", request_err), 3, true)
     end
     self.latest_synced_note = { state = "online", id = json.decode(result).result }
+    self.last_message_text = "" -- if we manage to sync once, a following error should be shown again
     logger.info("note added succesfully: " .. result)
 end
 
@@ -263,7 +264,7 @@ function AnkiConnect:store_offline(note, reason, show_always)
     -- word stored as key as well so we can have a simple duplicate check for offline notes
     local id = note.params.note.fields[self.conf.word_field:get_value()]
     if self.local_notes[id] then
-        return self:show_popup("Cannot store duplicate note offline!", 3, true)
+        return self:show_popup("Cannot store duplicate note offline!", 6, true)
     end
     self.local_notes[id] = true
     table.insert(self.local_notes, note)

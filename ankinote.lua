@@ -2,6 +2,7 @@ local logger = require("logger")
 local util = require("util")
 local u = require("lua_utils/utils")
 
+local LANG_NOT_SET_ERROR = "Neither the dictionary, nor the document have its language set. See the FAQ section in the plugin's README."
 local AnkiNote = {
 }
 
@@ -176,13 +177,16 @@ function AnkiNote:build()
             fields[field_name] = fn()
         end
     end
+    -- some fields require an internet connection, which we may not have at this point
+    -- all info needed to populate them is stored as a callback, which is called when a connection is available
+    local field_callbacks = {
+        picture = { func = "set_image_data", args = { self:get_picture_context() } },
+    }
+    if self.audio_field:get_value() then
+       field_callbacks.audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } }
+    end
     local note = {
-        -- some fields require an internet connection, which we may not have at this point
-        -- all info needed to populate them is stored as a callback, which is called when a connection is available
-        _field_callbacks = {
-            audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } },
-            picture = { func = "set_image_data", args = { self:get_picture_context() } },
-        },
+        _field_callbacks = field_callbacks,
         deckName = self.deckName:get_value(),
         modelName = self.modelName:get_value(),
         fields = fields,
@@ -198,7 +202,13 @@ end
 
 function AnkiNote:get_language()
     local ifo_lang = self.selected_dict.ifo_lang
-    return ifo_lang and ifo_lang.lang_in or self.ui.document:getProps().language
+    local language = ifo_lang and ifo_lang.lang_in or rawget(self.ui.document._anki_metadata, 'language')
+    if not language then
+        local selected_dict_name = self.popup_dict.results[self.popup_dict.dict_index].dict
+        local document_title = rawget(self.ui.document._anki_metadata, "title")
+        error(LANG_NOT_SET_ERROR:format(self.popup_dict.word, selected_dict_name, document_title), 0)
+    end
+    return language
 end
 
 function AnkiNote:init_context_buffer(size)

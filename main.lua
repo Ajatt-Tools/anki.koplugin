@@ -1,3 +1,4 @@
+local BookInfo = require("apps/filemanager/filemanagerbookinfo")
 local ButtonDialog = require("ui/widget/buttondialog")
 local CustomContextMenu = require("customcontextmenu")
 local DataStorage = require("datastorage")
@@ -112,9 +113,9 @@ function AnkiWidget:init()
     self:handle_events()
 end
 
-function AnkiWidget:extend_doc_settings()
-    local doc = self.ui.document
-    local _, file = util.splitFilePathName(doc.file)
+function AnkiWidget:extend_doc_settings(filepath, document_properties)
+    require("logger").info("AnkiWidget:extend_doc_settings#", filepath, document_properties)
+    local _, file = util.splitFilePathName(filepath)
     local file_pattern = "^%[([^%]]-)%]_(.-)_%[([^%]]-)%]%.[^%.]+"
     local f_author, f_title, f_extra = file:match(file_pattern)
     local file_properties = {
@@ -122,7 +123,6 @@ function AnkiWidget:extend_doc_settings()
         author = f_author,
         description = f_extra,
     }
-    local document_properties = doc:getProps()
     local get_prop = function(property)
         local d_p, f_p = document_properties[property], file_properties[property]
         local d_len, f_len = d_p and #d_p or 0, f_p and #f_p or 0
@@ -132,15 +132,17 @@ function AnkiWidget:extend_doc_settings()
         return f_p_more_precise and f_p or d_p
     end
     local metadata = {
-        title = get_prop('title'),
+        title = get_prop('display_title') or get_prop('title'),
         author = get_prop('author') or get_prop('authors'),
         description = get_prop('description'),
         current_page = function() return self.ui.view.state.page end,
-        pages = doc.info.number_of_pages or "N/A"
+        language = document_properties.language,
+        pages = document_properties.pages or "N/A"
     }
     local metadata_mt = {
         __index = function(t, k) return rawget(t, k) or "N/A" end
     }
+    require("logger").info("AnkiWidget:extend_doc_settings#", metadata)
     self.ui.document._anki_metadata = setmetatable(metadata, metadata_mt)
 end
 
@@ -162,7 +164,7 @@ function AnkiWidget:handle_events()
         self.anki_connect.wifi_connected = false
     end
 
-    self.onReaderReady = function()
+    self.onReaderReady = function(obj, doc_settings)
         -- Insert new button in the popup dictionary to allow adding anki cards
         -- TODO disable button if lookup was not contextual
         DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
@@ -181,7 +183,13 @@ function AnkiWidget:handle_events()
             }
             table.insert(buttons, 1, { self.add_to_anki_btn })
         end
-        self:extend_doc_settings()
+        local filepath = doc_settings.data.doc_path
+        self:extend_doc_settings(filepath, BookInfo.getDocProps(filepath, doc_settings.doc_props))
+    end
+
+    self.onBookMetadataChanged = function(obj, updated_props)
+        require("logger").info(obj, updated_props)
+        self:extend_doc_settings(updated_props.filepath, BookInfo.getDocProps(filepath, updated_props.doc_props))
     end
 end
 
