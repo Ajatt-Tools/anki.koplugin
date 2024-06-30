@@ -83,7 +83,7 @@ function AnkiWidget:load_extensions()
     local ext_directory = DataStorage:getFullDataDir() .. "/plugins/anki.koplugin/extensions/"
 
     for file in lfs.dir(ext_directory) do
-        if file:match("EXT_.*%.lua") then
+        if file:match("^EXT_.*%.lua") then
             table.insert(self.extensions, file)
             local ext_module = assert(loadfile(ext_directory .. file))()
             self.extensions[file] = ext_module
