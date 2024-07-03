@@ -141,7 +141,9 @@ function AnkiConnect:sync_offline_notes()
     for _,note in ipairs(failed) do
         table.insert(failed_as_json, json.encode(note))
         local id = note.params.note.fields[self.conf.word_field:get_value()]
-        self.local_notes[id] = true
+        if id then
+            self.local_notes[id] = true
+        end
     end
     -- called even when there's no failed notes, this way it also gets rid of the notes which we managed to sync, no need to keep those around
     u.open_file(self.notes_filename, 'w', function(f) f:write(table.concat(failed_as_json, '\n')) end)
