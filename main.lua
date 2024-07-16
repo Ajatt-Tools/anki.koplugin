@@ -114,7 +114,6 @@ function AnkiWidget:init()
 end
 
 function AnkiWidget:extend_doc_settings(filepath, document_properties)
-    require("logger").info("AnkiWidget:extend_doc_settings#", filepath, document_properties)
     local _, file = util.splitFilePathName(filepath)
     local file_pattern = "^%[([^%]]-)%]_(.-)_%[([^%]]-)%]%.[^%.]+"
     local f_author, f_title, f_extra = file:match(file_pattern)
@@ -142,7 +141,7 @@ function AnkiWidget:extend_doc_settings(filepath, document_properties)
     local metadata_mt = {
         __index = function(t, k) return rawget(t, k) or "N/A" end
     }
-    require("logger").info("AnkiWidget:extend_doc_settings#", metadata)
+    require("logger").info("AnkiWidget:extend_doc_settings#", filepath, document_properties, metadata)
     self.ui.document._anki_metadata = setmetatable(metadata, metadata_mt)
 end
 
@@ -188,9 +187,29 @@ function AnkiWidget:handle_events()
     end
 
     self.onBookMetadataChanged = function(obj, updated_props)
-        require("logger").info(obj, updated_props)
-        self:extend_doc_settings(updated_props.filepath, BookInfo.getDocProps(filepath, updated_props.doc_props))
+        local filepath = updated_props.filepath
+        self:extend_doc_settings(filepath, BookInfo.getDocProps(filepath, updated_props.doc_props))
     end
+end
+
+function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
+    if self.ui and not self.ui.document then
+        return
+    end
+    self.add_to_anki_btn = {
+        id = "add_to_anki",
+        text = _("Add to Anki"),
+        font_bold = true,
+        callback = function()
+            self.current_note = self.anki_note:new(popup_dict)
+            self.anki_connect:add_note(self.current_note)
+        end,
+        hold_callback = function()
+            self.current_note = self.anki_note:new(popup_dict)
+            self:show_config_widget()
+        end,
+    }
+    table.insert(buttons, 1, { self.add_to_anki_btn })
 end
 
 return AnkiWidget
