@@ -52,7 +52,7 @@ function AnkiNote:get_word_context()
         return self.popup_dict.word
     end
     local provider = self.ui.document.provider
-    if provider == "crengine" then -- EPUB
+    if self.ui.document.getSelectedWordContext then
         local before, after = self:get_custom_context(unpack(self.context))
         return before .. "<b>" .. self.popup_dict.word .. "</b>" .. after
     elseif provider == "mupdf" then -- CBZ
@@ -78,6 +78,15 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
         self:init_context_buffer(self.context_size)
     end
 
+    -- apparently the mupdf provider does not add the trailing/leading spaces, so we have to do it ourselves
+    local function add_spacing(context, idx)
+        local context_table = { context }
+        if self.ui.document.provider == 'mupdf' and #context > 0 then
+            table.insert(context_table, idx or #context_table + 1, ' ')
+        end
+        return table.concat(context_table, "")
+    end
+
     local delims_map = u.to_set(util.splitToChars("？」。.?!！"))
     -- calculate the slice of the `prev_context_table` array that should be prepended to the lookupword
     local prev_idx, prev_s_idx = 0, 0
@@ -100,7 +109,7 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
     prev_idx = prev_idx + pre_c
     if #self.prev_context_table <= prev_idx then expand_content() end
     local i, j = #self.prev_context_table - prev_idx + 1, #self.prev_context_table
-    local prepended_content = table.concat(self.prev_context_table, "", i, j)
+    local prepended_content = add_spacing(table.concat(self.prev_context_table, "", i, j))
 
     -- calculate the slice of the `next_context_table` array that should be appended to the lookupword
     -- `next_idx` starts at 1 because that's the first index in the table
@@ -120,7 +129,7 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
     next_idx = next_idx - 1
     next_idx = next_idx + post_c
     if next_idx > #self.next_context_table then expand_content() end
-    local appended_content = table.concat(self.next_context_table, "", 1, next_idx)
+    local appended_content = add_spacing(table.concat(self.next_context_table, "", 1, next_idx), 1)
     -- These 2 variables can be used to detect if any content was prepended / appended
     self.has_prepended_content = prev_idx > 0
     self.has_appended_content = next_idx > 0
