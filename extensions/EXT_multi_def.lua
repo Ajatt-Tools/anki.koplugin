@@ -43,7 +43,7 @@ function MultiDefinition:run(note)
         if selected_dict:get_kana_words():contains_any(result:get_kana_words()) then
             logger.info(("EXT: multi_definition: handling result: %s"):format(result:as_string()))
             local is_selected = idx == self.popup_dict.dict_index
-            local field = is_selected and nil or self.dict_field_map[result.dict]
+            local field = not is_selected and self.dict_field_map[result.dict]
             if field then
                 local field_defs = field_dict_map[field]
                 -- make sure that the selected dictionary is always inserted in the beginning
