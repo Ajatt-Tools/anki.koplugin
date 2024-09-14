@@ -44,7 +44,7 @@ end
 -- ]]
 function AnkiNote:get_metadata()
     local meta = self.ui.document._anki_metadata
-    return string.format("%s - %s (%d/%d)", meta.author, meta.title, meta:current_page(), meta.pages)
+    return string.format("%s - %s (%d/%d)", meta.author, meta.title, meta:current_page(), meta.pages())
 end
 
 function AnkiNote:get_word_context()

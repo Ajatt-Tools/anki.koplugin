@@ -7,6 +7,7 @@ local MenuBuilder = require("menubuilder")
 local lfs = require("libs/libkoreader-lfs")
 local Widget = require("ui/widget/widget")
 local UIManager = require("ui/uimanager")
+local logger = require("logger")
 local util = require("util")
 local _ = require("gettext")
 
@@ -136,12 +137,12 @@ function AnkiWidget:extend_doc_settings(filepath, document_properties)
         description = get_prop('description'),
         current_page = function() return self.ui.view.state.page end,
         language = document_properties.language,
-        pages = document_properties.pages or "N/A"
+        pages = function() return document_properties.pages or self.ui.doc_settings:readSetting("doc_pages") end
     }
     local metadata_mt = {
         __index = function(t, k) return rawget(t, k) or "N/A" end
     }
-    require("logger").info("AnkiWidget:extend_doc_settings#", filepath, document_properties, metadata)
+    logger.dbg("AnkiWidget:extend_doc_settings#", filepath, document_properties, metadata)
     self.ui.document._anki_metadata = setmetatable(metadata, metadata_mt)
 end
 
