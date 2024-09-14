@@ -19,7 +19,7 @@ KOReader plugin enabling Anki note generation for words looked up in the interna
 
    ```sh
    git clone "https://github.com/Ajatt-Tools/anki.koplugin.git" ./anki.koplugin
-   ssh -p 2222 root@<IP-address>:/mnt/onboard/.adds/koreader <local_folder>
+   sshfs -p 2222 root@<IP-address>:/mnt/onboard/.adds/koreader <local_folder>
    # be careful to not add a trailing / to the source directory, this creates the folder on your device
    rsync -Pruv --exclude=".git/" ./anki.koplugin <local_folder>/plugins/
    ```
