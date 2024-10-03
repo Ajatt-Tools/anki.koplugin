@@ -37,6 +37,9 @@ local Config = {
     ConfigOpt:new{ id = 'meta_field' },
     ConfigOpt:new{ id = 'audio_field' },
     ConfigOpt:new{ id = 'image_field' },
+    ConfigOpt:new{ id = 'prev_sentence_count', default = 1 },
+    ConfigOpt:new{ id = 'next_sentence_count', default = 1 },
+
 }
 
 local missing = {}

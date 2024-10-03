@@ -95,6 +95,18 @@ local menu_entries = {
         conf_type = "checklist",
         default_values = function(self) return self.extensions end,
     },
+    {
+        id = "prev_sentence_count",
+        group = note_settings,
+        name = "Previous Sentence Count",
+        description = "Amount of sentences to prepend to the word looked up.",
+    },
+    {
+        id = "next_sentence_count",
+        group = note_settings,
+        name = "Next Sentence Count",
+        description = "Amount of sentences to append to the word looked up.",
+    },
     --[[ TODO: we may wanna move this to the extension and insert it back in the menu somehow
      {
         id = "dict_field_map",

@@ -303,7 +303,7 @@ function AnkiNote:new(popup_dict)
     -- TODO this can be delayed
     if note.contextual_lookup then
         note:init_context_buffer(note.context_size)
-        note:set_custom_context(1, 0, 1, 0)
+        note:set_custom_context(self.conf.prev_sentence_count:get_value(), 0, self.conf.next_sentence_count:get_value(), 0)
     end
     return note
 end
