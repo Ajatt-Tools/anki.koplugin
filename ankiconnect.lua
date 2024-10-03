@@ -282,7 +282,12 @@ function AnkiConnect:load_notes()
             assert(note, ("Could not parse note '%s': %s"):format(note_json, err))
             table.insert(self.local_notes, note)
             -- store unique identifier in local_notes tabel for basic duplicates check
-            self.local_notes[note.params.note.fields[self.conf.word_field:get_value()]] = true
+            local note_id = note.params.note.fields[self.conf.word_field:get_value()]
+            -- when the user creates notes with different settings then the current word_field might not be present
+            -- on all locally stored notes, we'll just not have the duplicates check for these
+            if note_id then
+                self.local_notes[note_id] = true
+            end
         end
     end)
     logger.dbg(string.format("Loaded %d notes from disk.", #self.local_notes))
