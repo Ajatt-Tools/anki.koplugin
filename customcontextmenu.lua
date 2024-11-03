@@ -14,6 +14,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Screen = Device.screen
+local config = require("configuration")
 
 local CustomContextMenu = FocusManager:extend{}
 
@@ -184,12 +185,12 @@ function CustomContextMenu:reset()
 end
 
 function CustomContextMenu:reset_prev()
-    self.prev_s_cnt = 1
+    self.prev_s_cnt = tonumber(config.prev_sentence_count:get_value())
     self.prev_c_cnt = 0
 end
 
 function CustomContextMenu:reset_next()
-    self.next_s_cnt = 1
+    self.next_s_cnt = tonumber(config.next_sentence_count:get_value())
     self.next_c_cnt = 0
 end
 

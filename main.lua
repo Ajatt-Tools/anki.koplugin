@@ -64,7 +64,7 @@ function AnkiWidget:show_config_widget()
                 text = "Add with custom context",
                 id = "custom_context",
                 enabled = self.current_note.contextual_lookup,
-                callback = function() self:show_custom_context_widget() end
+                callback = function() self:set_profile(function() return self:show_custom_context_widget() end) end
             }},
             {{
                 text = "Delete latest note",
@@ -94,7 +94,7 @@ end
 function AnkiWidget:show_custom_context_widget()
     local function on_save_cb()
         local m = self.context_menu
-        self.current_note:set_custom_context(m.prev_s_cnt, m.prev_c_cnt, m.next_s_cnt, m.next_c_cnt)
+        self.current_note:set_custom_context(tonumber(Configuration.prev_sentence_count:get_value()), m.prev_c_cnt, tonumber(Configuration.next_sentence_count:get_value()), m.next_c_cnt)
         self.anki_connect:add_note(self.current_note)
         self.context_menu:onClose()
         self.config_widget:onClose()
