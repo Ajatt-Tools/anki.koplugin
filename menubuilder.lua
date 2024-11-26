@@ -65,6 +65,12 @@ local menu_entries = {
         name = "Context Field",
         description = "Anki field for sentence selected word occured in.",
     },
+    {
+        id = "translated_context_field",
+        group = note_settings,
+        name = "Translated Context Field",
+        description = "Anki Field for the translation of the sentence the selected word occured in."
+    },
      {
         id = "def_field",
         group = note_settings,

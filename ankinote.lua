@@ -187,20 +187,25 @@ function AnkiNote:build()
             fields[field_name] = fn()
         end
     end
-    -- some fields require an internet connection, which we may not have at this point
-    -- all info needed to populate them is stored as a callback, which is called when a connection is available
-    local field_callbacks = {
-        picture = { func = "set_image_data", args = { self:get_picture_context() } },
-    }
-    if conf.audio_field:get_value() then
-       field_callbacks.audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } }
-    end
     local note = {
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
         _field_callbacks = {
-            audio = { func = "set_forvo_audio", args = { self.popup_dict.word, self:get_language() } },
-            picture = { func = "set_image_data", args = { self:get_picture_context() } },
+            audio = {
+                func = "set_forvo_audio",
+                field_name = conf.audio_field:get_value(),
+                args = { self.popup_dict.word, self:get_language() }
+            },
+            picture = {
+                func = "set_image_data",
+                field_name = conf.image_field:get_value(),
+                args = { self:get_picture_context() }
+            },
+            fields = {
+                func = "set_translated_context",
+                field_name = conf.translated_context_field:get_value(),
+                args = { fields[conf.context_field:get_value()] or self:get_word_context(), self:get_language() }
+            },
         },
         deckName = conf.deckName:get_value(),
         modelName = conf.modelName:get_value(),

@@ -11,6 +11,7 @@ local ConfirmBox = require("ui/widget/confirmbox")
 local InfoMessage = require("ui/widget/infomessage")
 local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
+local Translator = require("ui/translator")
 local forvo = require("forvo")
 local u = require("lua_utils/utils")
 local conf = require("configuration")
@@ -66,12 +67,14 @@ function AnkiConnect:get_request_error(http_return_code, request_data)
     end
 end
 
--- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
-function AnkiConnect:set_forvo_audio(word, language)
-    local field = conf.audio_field:get_value()
-    if not field then
-        return true
-    end
+function AnkiConnect:set_translated_context(_, context)
+    local result = Translator:translate(context, Translator:getTargetLanguage(), Translator:getSourceLanguage())
+    logger.info(("Queried translation: '%s' -> '%s'"):format(context, result))
+    return true, result
+end
+
+function AnkiConnect:set_forvo_audio(field, word, language)
+    logger.info(("Querying Forvo audio for '%s' in language: %s"):format(word, language))
     local ok, forvo_url = forvo.get_pronunciation_url(word, language)
     if not ok then
         return false, "Could not connect to forvo."
@@ -83,11 +86,7 @@ function AnkiConnect:set_forvo_audio(word, language)
     } or nil
 end
 
-function AnkiConnect:set_image_data(img_path)
-    local field = conf.image_field:get_value()
-    if not field then
-        return true
-    end
+function AnkiConnect:set_image_data(field, img_path)
     if not img_path then
         return true
     end
@@ -102,9 +101,27 @@ function AnkiConnect:set_image_data(img_path)
     return true, {
         data = data,
         filename = filename,
-        -- TODO we need to pass the actual field along, since we don't call this immediately, if the profile is changed the field will be wrong
         fields = { field }
     }
+end
+
+function AnkiConnect:handle_callbacks(note, on_err_func)
+    local field_callbacks = note.params.note._field_callbacks
+    for param, mod in pairs(field_callbacks) do
+        if mod.field_name then
+            local _, ok, result_or_err = pcall(self[mod.func], self, mod.field_name, unpack(mod.args))
+            if not ok then
+                return on_err_func(result_or_err)
+            end
+            if param == "fields" then
+                note.params.note.fields[mod.field_name] = result_or_err
+            else
+                assert(note.params.note[param] == nil, ("unexpected result: note property '%s' was already present!"):format(param))
+                note.params.note[param] = result_or_err
+            end
+        end
+    end
+    return true
 end
 
 function AnkiConnect:sync_offline_notes()
@@ -115,29 +132,20 @@ function AnkiConnect:sync_offline_notes()
 
     local synced, failed, errs = {}, {}, u.defaultdict(0)
     for _,note in ipairs(self.local_notes) do
-        local modifiers = note.params.note._field_callbacks
-        local mod_error = nil
-        for param, mod in pairs(modifiers) do
-            local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
-            if not ok then
-                mod_error = result_or_err
-                errs[mod_error] = errs[mod_error] + 1
-                break
-            end
-            note.params.note[param] = result_or_err
-        end
-        if not mod_error then
+        local callback_ok = self:handle_callbacks(note, function(callback_err)
+            errs[callback_err] = errs[callback_err] + 1
+        end)
+        if callback_ok then
             -- we have to remove the _field_callbacks field before saving the note so anki-connect doesn't complain
             note.params.note._field_callbacks = nil
             local _, request_err = self:post_request(json.encode(note))
             if request_err then
-                mod_error = request_err
-                errs[mod_error] = errs[mod_error] + 1
+                errs[request_err] = errs[request_err] + 1
                 -- if it failed we want reinsert the _field_callbacks field
-                note.params.note._field_callbacks = modifiers
+                note.params.note._field_callbacks = note.params.note._field_callbacks
             end
         end
-        table.insert(mod_error and failed or synced, note)
+        table.insert(callback_ok and synced or failed, note)
     end
     self.local_notes = failed
     local failed_as_json = {}
@@ -247,14 +255,13 @@ function AnkiConnect:add_note(anki_note)
             end
         })
     end
-    for param, mod in pairs(note.params.note._field_callbacks) do
-        local _, ok, result_or_err = pcall(self[mod.func], self, unpack(mod.args))
-        if not ok then
-            return self:store_offline(note, result_or_err)
-        end
-        note.params.note[param] = result_or_err
+    local callback_ok = self:handle_callbacks(note, function(callback_err)
+        return self:store_offline(note, callback_err)
+    end)
+    if callback_ok then
+        note.params.note._field_callbacks = nil
     end
-    note.params.note._field_callbacks = nil
+
 
     local result, request_err = self:post_request(json.encode(note))
     if request_err then
