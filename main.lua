@@ -29,6 +29,10 @@ function AnkiWidget:show_profiles_widget(opts)
     for name, _ in pairs(Configuration.profiles) do
         table.insert(buttons, { { text = name, provider = name, checked = Configuration:is_active(name) } })
     end
+    if #buttons == 0 then
+        local msg = [[Failed to load profiles, there are none available, create a profile first. See the README on GitHub for more details.]]
+        return UIManager:show(InfoMessage:new { text = msg, timeout = 4 })
+    end
 
     self.profile_change_widget = RadioButtonWidget:new{
         title_text = opts.title_text,
@@ -114,6 +118,7 @@ end
 -- items to the dictionary menu
 -- ]]
 function AnkiWidget:addToMainMenu(menu_items)
+    -- TODO an option to create a new profile (based on existing ones) would be cool
     local builder = MenuBuilder:new{
         extensions = self.extensions,
         ui = self.ui
