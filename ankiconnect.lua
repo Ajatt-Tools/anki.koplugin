@@ -20,6 +20,29 @@ local AnkiConnect = {
     settings_dir = DataStorage:getSettingsDir(),
 }
 
+--[[
+LuaSocket returns somewhat cryptic errors sometimes
+- user forgets to add the HTTP prefix -> schemedefs nil
+- user uses HTTPS instead of HTTP -> wantread
+We can prevent this by modifying/adding the scheme when it's wrong/missing
+--]]
+function AnkiConnect:get_url()
+    local url = conf.url:get_value()
+    if self.last_url == url then
+        return assert(self.valid_url, "URL was not validated yet, we should not get here")
+    end
+    local valid_url = url
+    local _, scheme_end_idx, scheme, ssl = url:find("^(http(s?)://)")
+    if not scheme then
+        valid_url = 'http://'..url
+    elseif ssl then
+        valid_url = 'http://'..url:sub(scheme_end_idx+1, #url)
+    end
+    self.last_url = url
+    self.valid_url = valid_url
+    return valid_url
+end
+
 function AnkiConnect:with_timeout(timeout, func)
     socketutil:set_timeout(timeout)
     local res = { func() } -- store all values returned by function
@@ -31,7 +54,7 @@ function AnkiConnect:is_running()
     if not self.wifi_connected then
         return false, "WiFi disconnected."
     end
-    local result, code, headers = self:with_timeout(1, function() return http.request(conf.url:get_value()) end)
+    local result, code, headers = self:with_timeout(1, function() return http.request(self:get_url()) end)
     logger.dbg(string.format("AnkiConnect#is_running = code: %s, headers: %s, result: %s", code, headers, result))
     return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
 end
@@ -40,7 +63,7 @@ function AnkiConnect:post_request(json_payload)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request
     local request = {
-        url = conf.url:get_value(),
+        url = self:get_url(),
         method = "POST",
         headers = {
             ["Content-Type"] = "application/json",
