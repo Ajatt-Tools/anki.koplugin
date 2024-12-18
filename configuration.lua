@@ -146,7 +146,11 @@ function Configuration:init_profiles()
         end
 
         local full_path = plugin_directory .. "profiles/" .. user_profile
-        return Profile:new(user_profile, full_path, assert(loadfile(full_path), ("Could not load profile '%s' in %s"):format(user_profile, plugin_directory))())
+        local mod, err = loadfile(full_path)
+        if not mod then
+            error(("Could not load profile '%s' in %s: %s"):format(user_profile, plugin_directory, err))
+        end
+        return Profile:new(user_profile, full_path, mod())
     end
 
     self.profiles.default = init_profile('default')

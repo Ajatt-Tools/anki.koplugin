@@ -43,7 +43,7 @@ local Config = {
     context_field = "SentKanji",
 
     -- Translation of the context field
-    translated_context_field = "SentEng"
+    translated_context_field = "SentEng",
 
     -- Amount of sentences which are prepended to the word looked up. Set this to 1 to complete the current sentence.
     prev_sentence_count = 1,
