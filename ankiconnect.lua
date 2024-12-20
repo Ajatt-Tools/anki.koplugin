@@ -148,6 +148,10 @@ function AnkiConnect:handle_callbacks(note, on_err_func)
 end
 
 function AnkiConnect:sync_offline_notes()
+    if NetworkMgr:willRerunWhenOnline(function() self:sync_offline_notes() end) then
+        return
+    end
+
     local can_sync, err = self:is_running()
     if not can_sync then
         return self:show_popup(string.format("Synchronizing failed!\n%s", err), 3, true)
