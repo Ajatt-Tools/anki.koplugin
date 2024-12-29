@@ -40,6 +40,9 @@ function AnkiConnect:get_url()
     end
     self.last_url = url
     self.valid_url = valid_url
+    if url ~= valid_url then
+        logger.info(("Corrected URL from '%s' to '%s'"):format(url, valid_url))
+    end
     return valid_url
 end
 
