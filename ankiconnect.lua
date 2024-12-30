@@ -29,7 +29,7 @@ We can prevent this by modifying/adding the scheme when it's wrong/missing
 function AnkiConnect:get_url()
     local url = conf.url:get_value()
     if self.last_url == url then
-        return assert(self.valid_url, "URL was not validated yet, we should not get here")
+        return (assert(self.valid_url, "URL was not validated yet, we should not get here"))
     end
     local valid_url = url
     local _, scheme_end_idx, scheme, ssl = url:find("^(http(s?)://)")
