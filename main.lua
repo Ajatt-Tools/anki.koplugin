@@ -1,4 +1,3 @@
-local BookInfo = require("apps/filemanager/filemanagerbookinfo")
 local ButtonDialog = require("ui/widget/buttondialog")
 local CustomContextMenu = require("customcontextmenu")
 local DataStorage = require("datastorage")
@@ -259,12 +258,12 @@ function AnkiWidget:handle_events()
             table.insert(buttons, 1, { self.add_to_anki_btn })
         end
         local filepath = doc_settings.data.doc_path
-        self:extend_doc_settings(filepath, BookInfo.getDocProps(filepath, doc_settings.doc_props))
+        self:extend_doc_settings(filepath, self.ui.bookinfo:getDocProps(filepath, doc_settings.doc_props))
     end
 
     self.onBookMetadataChanged = function(obj, updated_props)
         local filepath = updated_props.filepath
-        self:extend_doc_settings(filepath, BookInfo.getDocProps(filepath, updated_props.doc_props))
+        self:extend_doc_settings(filepath, self.ui.bookinfo:getDocProps(filepath, updated_props.doc_props))
     end
 end
 
