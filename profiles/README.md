@@ -64,13 +64,12 @@ local Config = {
 
     -- list of extensions which should be enabled, by default they are all off
     -- an extension is turned on by listing its filename in the table below
+    -- existing extensions are listed below, remove the leading -- to enable them
     enabled_extensions = {
-        --[[
-        "EXT_dict_edit.lua",
-        "EXT_dict_word_lookup.lua",
-        "EXT_multi_def.lua",
-        "EXT_pitch_accent.lua"
-        --]]
+        --"EXT_dict_edit.lua",
+        --"EXT_dict_word_lookup.lua",
+        --"EXT_multi_def.lua",
+        --"EXT_pitch_accent.lua"
     }
 }
 return Config
