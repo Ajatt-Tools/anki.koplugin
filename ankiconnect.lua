@@ -103,7 +103,7 @@ function AnkiConnect:set_forvo_audio(field, word, language)
     logger.info(("Querying Forvo audio for '%s' in language: %s"):format(word, language))
     local ok, forvo_url = forvo.get_pronunciation_url(word, language)
     if not ok then
-        return false, "Could not connect to forvo."
+        return false, ("Could not connect to forvo: %s"):format(forvo_url)
     end
     return true, forvo_url and {
         url = forvo_url,

@@ -8,14 +8,20 @@ Utils for downloading pronunciations from Forvo
 local http = require("socket.http")
 local socket = require("socket")
 local ltn12 = require("ltn12")
+local socketutil = require("socketutil")
+
 
 local function GET(url)
     local sink = {}
+    socketutil:set_timeout(socketutil.LARGE_BLOCK_TIMEOUT, socketutil.LARGE_TOTAL_TIMEOUT)
     local request = {
         url = url,
         method = "GET",
         headers = {
-            ["Content-Type"] = "application/json"
+            ['User-Agent'] = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            ['Host'] = 'forvo.com',
+            ['Accept-Language'] = "en-US,en;q=0.9",
+            ['Accept'] = "*/*"
         },
         sink = ltn12.sink.table(sink),
     }
@@ -23,6 +29,7 @@ local function GET(url)
     if code == 200 then
         return table.concat(sink)
     end
+    return false, ("[%d]: %s"):format(code or -1, status or "")
 end
 
 -- http://lua-users.org/wiki/BaseSixtyFour
@@ -73,9 +80,9 @@ end
 
 local function get_pronunciation_url(word, language)
     local forvo_url = ('https://forvo.com/search/%s/%s'):format(url_encode(word), language)
-    local forvo_page = GET(forvo_url)
+    local forvo_page, err = GET(forvo_url)
     if not forvo_page then
-        return false
+        return false, err
     end
     local play_params = string.match(forvo_page, "Play%((.-)%);")
 
