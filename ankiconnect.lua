@@ -188,7 +188,10 @@ function AnkiConnect:sync_offline_notes()
         end
     end
     -- called even when there's no failed notes, this way it also gets rid of the notes which we managed to sync, no need to keep those around
-    u.open_file(self.notes_filename, 'w', function(f) f:write(table.concat(failed_as_json, '\n')) end)
+    u.open_file(self.notes_filename, 'w', function(f)
+        f:write(table.concat(failed_as_json, '\n'))
+        if #failed_as_json > 0 then f:write('\n') end
+    end)
     local sync_message_parts = {}
     if #synced > 0 then
         -- if any notes were synced succesfully, reset the latest added note (since it's not actually latest anymore)
