@@ -62,7 +62,9 @@ function AnkiConnect:is_running()
     return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
 end
 
-function AnkiConnect:post_request(json_payload)
+function AnkiConnect:post_request(note)
+    local anki_connect_request = { action = "addNote", params = { note = note }, version = 6 }
+    local json_payload = json.encode(anki_connect_request)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request
     local request = {
@@ -132,7 +134,7 @@ function AnkiConnect:set_image_data(field, img_path)
 end
 
 function AnkiConnect:handle_callbacks(note, on_err_func)
-    local field_callbacks = note.params.note._field_callbacks
+    local field_callbacks = note.field_callbacks
     for param, mod in pairs(field_callbacks) do
         if mod.field_name then
             local _, ok, result_or_err = pcall(self[mod.func], self, mod.field_name, unpack(mod.args))
@@ -140,15 +142,14 @@ function AnkiConnect:handle_callbacks(note, on_err_func)
                 return on_err_func(result_or_err)
             end
             if param == "fields" then
-                note.params.note.fields[mod.field_name] = result_or_err
+                note.data.fields[mod.field_name] = result_or_err
             else
-                assert(note.params.note[param] == nil, ("unexpected result: note property '%s' was already present!"):format(param))
-                note.params.note[param] = result_or_err
+                assert(note.data[param] == nil, ("unexpected result: note property '%s' was already present!"):format(param))
+                note.data[param] = result_or_err
             end
             field_callbacks[param] = nil
         end
     end
-    note.params.note._field_callbacks = nil
     return true
 end
 
@@ -168,7 +169,7 @@ function AnkiConnect:sync_offline_notes()
             errs[callback_err] = errs[callback_err] + 1
         end)
         if sync_ok then
-            local _, request_err = self:post_request(json.encode(note))
+            local _, request_err = self:post_request(note.data)
             if request_err then
                 sync_ok = false
                 errs[request_err] = errs[request_err] + 1
@@ -180,10 +181,6 @@ function AnkiConnect:sync_offline_notes()
     local failed_as_json = {}
     for _,note in ipairs(failed) do
         table.insert(failed_as_json, json.encode(note))
-        local id = note.params.note.fields[conf.word_field:get_value()]
-        if id then
-            self.local_notes[id] = true
-        end
     end
     -- called even when there's no failed notes, this way it also gets rid of the notes which we managed to sync, no need to keep those around
     u.open_file(self.notes_filename, 'w', function(f)
@@ -290,10 +287,9 @@ function AnkiConnect:add_note(anki_note)
     local callback_ok = self:handle_callbacks(note, function(callback_err)
         return self:show_popup(string.format("Error while handling callbacks:\n\n%s", callback_err), 3, true)
     end)
-    if not callback_ok then
-        return
-    end
-    local result, request_err = self:post_request(json.encode(note))
+    if not callback_ok then return end
+
+    local result, request_err = self:post_request(note.data)
     if request_err then
         return self:show_popup(string.format("Error while synchronizing note:\n\n%s", request_err), 3, true)
     end
@@ -303,12 +299,10 @@ function AnkiConnect:add_note(anki_note)
 end
 
 function AnkiConnect:store_offline(note, reason, show_always)
-    -- word stored as key as well so we can have a simple duplicate check for offline notes
-    local id = note.params.note.fields[conf.word_field:get_value()]
-    if self.local_notes[id] then
+    if self.local_notes[note.identifier] and not note.data.options.allowDuplicate then
         return self:show_popup("Cannot store duplicate note offline!", 6, true)
     end
-    self.local_notes[id] = true
+    self.local_notes[note.identifier] = true
     table.insert(self.local_notes, note)
     u.open_file(self.notes_filename, 'a', function(f) f:write(json.encode(note) .. '\n') end)
     self.latest_synced_note = { state = "offline", id = id }
@@ -321,12 +315,8 @@ function AnkiConnect:load_notes()
             local note, err = json.decode(note_json)
             assert(note, ("Could not parse note '%s': %s"):format(note_json, err))
             table.insert(self.local_notes, note)
-            -- store unique identifier in local_notes tabel for basic duplicates check
-            --local note_id = note.params.note.fields[conf.word_field:get_value()]
-            -- when the user creates notes with different settings then the current word_field might not be present
-            -- on all locally stored notes, we'll just not have the duplicates check for these
-            if note_id then
-                self.local_notes[note_id] = true
+            if note.identifier then
+                self.local_notes[note.identifier] = true
             end
         end
     end)

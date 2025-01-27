@@ -188,9 +188,21 @@ function AnkiNote:build()
         end
     end
     local note = {
+        deckName = conf.deckName:get_value(),
+        modelName = conf.modelName:get_value(),
+        fields = fields,
+        options = {
+            allowDuplicate = conf.allow_dupes:get_value(),
+            duplicateScope = conf.dupe_scope:get_value(),
+        },
+        tags = self.tags,
+    }
+    return {
+        -- actual table passed to anki-connect later
+        data = self:run_extensions(note),
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
-        _field_callbacks = {
+        field_callbacks = {
             audio = {
                 func = "set_forvo_audio",
                 field_name = conf.audio_field:get_value(),
@@ -207,17 +219,9 @@ function AnkiNote:build()
                 args = { fields[conf.context_field:get_value()] or self:get_word_context(), self:get_language() }
             },
         },
-        deckName = conf.deckName:get_value(),
-        modelName = conf.modelName:get_value(),
-        fields = fields,
-        options = {
-            allowDuplicate = conf.allow_dupes:get_value(),
-            duplicateScope = conf.dupe_scope:get_value(),
-        },
-        tags = self.tags,
+        -- used as id to detect duplicates when storing notes offline
+        identifier = conf.word_field:get_value()
     }
-    local note_extended = self:run_extensions(note)
-    return { action = "addNote", params = { note = note_extended }, version = 6 }
 end
 
 function AnkiNote:get_language()
