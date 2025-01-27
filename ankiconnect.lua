@@ -162,20 +162,21 @@ function AnkiConnect:sync_offline_notes()
 
     local synced, failed, errs = {}, {}, u.defaultdict(0)
     for _,note in ipairs(self.local_notes) do
-        local callback_ok = self:handle_callbacks(note, function(callback_err)
+        local sync_ok = self:handle_callbacks(note, function(callback_err)
             errs[callback_err] = errs[callback_err] + 1
         end)
-        if callback_ok then
+        if sync_ok then
             -- we have to remove the _field_callbacks field before saving the note so anki-connect doesn't complain
             note.params.note._field_callbacks = nil
             local _, request_err = self:post_request(json.encode(note))
             if request_err then
+                sync_ok = false
                 errs[request_err] = errs[request_err] + 1
                 -- if it failed we want reinsert the _field_callbacks field
                 note.params.note._field_callbacks = note.params.note._field_callbacks
             end
         end
-        table.insert(callback_ok and synced or failed, note)
+        table.insert(sync_ok and synced or failed, note)
     end
     self.local_notes = failed
     local failed_as_json = {}
