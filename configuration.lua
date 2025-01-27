@@ -12,6 +12,7 @@ local Setting_mt = {
     __index = function(t, key) return rawget(t, key) or Setting[key] end
 }
 
+-- TODO when you update a setting on the fly it doesn't immediately propagate
 function Setting:get_value_nodefault()
     return self.profile and self.profile.data[self.id]
 end
@@ -86,6 +87,7 @@ local Configuration = {
     profiles = {},
     active_profile = nil, -- the currently loaded configuration
     Setting:new{ id = 'url',                required = true },
+    Setting:new{ id = 'api_key',            required = false },
     Setting:new{ id = 'deckName',           required = true },
     Setting:new{ id = 'modelName',          required = true },
     Setting:new{ id = 'word_field',         required = true },

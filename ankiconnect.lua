@@ -63,7 +63,7 @@ function AnkiConnect:is_running()
 end
 
 function AnkiConnect:post_request(note)
-    local anki_connect_request = { action = "addNote", params = { note = note }, version = 6 }
+    local anki_connect_request = { action = "addNote", params = { note = note }, version = 6, key = conf.api_key:get_value() }
     local json_payload = json.encode(anki_connect_request)
     logger.dbg("AnkiConnect#post_request: building POST request with payload: ", json_payload)
     local output_sink = {} -- contains data returned by request

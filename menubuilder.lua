@@ -20,6 +20,12 @@ local menu_entries = {
         name = "AnkiConnect URL",
         description = "The URL anki_connect is listening on.",
     },
+    {
+        id = "api_key",
+        group = general_settings,
+        name = "AnkiConnect API key",
+        description = "An optional API key to secure the connection.",
+    },
      {
         id = "deckName",
         group = general_settings,

@@ -31,6 +31,9 @@ local Config = {
     allow_dupes = false,
     -- The scope where ankiconnect will look to to find duplicates
     dupe_scope = "deck",
+    -- api key - extra authentication supported by ankiconnect, see https://git.foosoft.net/alex/anki-connect#authentication
+    -- this is totally optional and probably unnecessary, unless you expose anki-connect on the public network for some reason
+    api_key = nil,
 
 
     ----------------------------------------------
