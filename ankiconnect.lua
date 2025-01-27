@@ -145,8 +145,10 @@ function AnkiConnect:handle_callbacks(note, on_err_func)
                 assert(note.params.note[param] == nil, ("unexpected result: note property '%s' was already present!"):format(param))
                 note.params.note[param] = result_or_err
             end
+            field_callbacks[param] = nil
         end
     end
+    note.params.note._field_callbacks = nil
     return true
 end
 
@@ -166,14 +168,10 @@ function AnkiConnect:sync_offline_notes()
             errs[callback_err] = errs[callback_err] + 1
         end)
         if sync_ok then
-            -- we have to remove the _field_callbacks field before saving the note so anki-connect doesn't complain
-            note.params.note._field_callbacks = nil
             local _, request_err = self:post_request(json.encode(note))
             if request_err then
                 sync_ok = false
                 errs[request_err] = errs[request_err] + 1
-                -- if it failed we want reinsert the _field_callbacks field
-                note.params.note._field_callbacks = note.params.note._field_callbacks
             end
         end
         table.insert(sync_ok and synced or failed, note)
@@ -290,13 +288,11 @@ function AnkiConnect:add_note(anki_note)
         })
     end
     local callback_ok = self:handle_callbacks(note, function(callback_err)
-        return self:store_offline(note, callback_err)
+        return self:show_popup(string.format("Error while handling callbacks:\n\n%s", callback_err), 3, true)
     end)
-    if callback_ok then
-        note.params.note._field_callbacks = nil
+    if not callback_ok then
+        return
     end
-
-
     local result, request_err = self:post_request(json.encode(note))
     if request_err then
         return self:show_popup(string.format("Error while synchronizing note:\n\n%s", request_err), 3, true)
