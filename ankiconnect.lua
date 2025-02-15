@@ -105,6 +105,11 @@ function AnkiConnect:set_forvo_audio(field, word, language)
     logger.info(("Querying Forvo audio for '%s' in language: %s"):format(word, language))
     local ok, forvo_url = forvo.get_pronunciation_url(word, language)
     if not ok then
+        if forvo_url == "FORVO_403" then
+            -- For 403 errors, return true but no audio data
+            logger.warn("Forvo returned 403 error - continuing without audio")
+            return true, nil
+        end
         return false, ("Could not connect to forvo: %s"):format(forvo_url)
     end
     return true, forvo_url and {
@@ -139,6 +144,12 @@ function AnkiConnect:handle_callbacks(note, on_err_func)
         if mod.field_name then
             local _, ok, result_or_err = pcall(self[mod.func], self, mod.field_name, unpack(mod.args))
             if not ok then
+                -- For non-fatal errors (like Forvo 403), continue without that field
+                if mod.func == "set_forvo_audio" then
+                    self:show_popup("Could not add audio from Forvo - continuing without it", 3, true)
+                    field_callbacks[param] = nil
+                    goto continue
+                end
                 return on_err_func(result_or_err)
             end
             if param == "fields" then
@@ -149,6 +160,7 @@ function AnkiConnect:handle_callbacks(note, on_err_func)
             end
             field_callbacks[param] = nil
         end
+        ::continue::
     end
     return true
 end
