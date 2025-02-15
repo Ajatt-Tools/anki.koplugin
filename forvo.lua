@@ -29,6 +29,10 @@ local function GET(url)
     if code == 200 then
         return table.concat(sink)
     end
+    -- Special handling for 403 error (likely rate limit or access restriction)
+    if code == 403 then
+        return false, "FORVO_403"
+    end
     return false, ("[%d]: %s"):format(code or -1, status or "")
 end
 
