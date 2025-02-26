@@ -57,9 +57,45 @@ function AnkiConnect:is_running()
     if not self.wifi_connected then
         return false, "WiFi disconnected."
     end
-    local result, code, headers = self:with_timeout(1, function() return http.request(self:get_url()) end)
-    logger.dbg(string.format("AnkiConnect#is_running = code: %s, headers: %s, result: %s", code, headers, result))
-    return code == 200, string.format("Unable to reach AnkiConnect.\n%s", result or code)
+    local result, code, error = self:with_timeout(1, function() return self:post_requestpermission() end)
+    logger.dbg(string.format("AnkiConnect#is_running = code: %s, error: %s, result: %s", code, error, result))
+    return code == 200, string.format("Unable to reach AnkiConnect.\n%s", error or code)
+end
+
+function AnkiConnect:post_requestpermission()
+    local anki_connect_request = { action = "requestPermission", version = 6 }
+    local json_payload = json.encode(anki_connect_request)
+    local output_sink = {} -- contains data returned by request
+    local request = {
+        url = self:get_url(),
+        method = "POST",
+        headers = {
+            ["Content-Type"] = "application/json",
+            ["Content-Length"] = #json_payload,
+        },
+        sink = ltn12.sink.table(output_sink),
+        source = ltn12.source.string(json_payload),
+    }
+    local code, headers, status = socket.skip(1, http.request(request))
+    logger.dbg(string.format("AnkiConnect#post_requestpermission: code: %s, header: %s, status: %s\n", code, headers, status))
+    local result = table.concat(output_sink)
+    logger.dbg("AnkiConnect#post_requestpermission: result: ", result)
+    return result, code, self:get_requestpermission_error(code, result)
+end
+
+function AnkiConnect:get_requestpermission_error(http_return_code, request_data)
+    if http_return_code ~= 200 then
+        return string.format("Invalid return code: %s.", http_return_code)
+    else
+        local decoded_data = json.decode(request_data)
+        local json_err = decoded_data.error
+        if type(json_err) == "string" then
+            return json_err
+        end
+        if decoded_data.result.permission == "denied" then
+            return "Permission denied."
+        end
+    end
 end
 
 function AnkiConnect:post_request(note)
