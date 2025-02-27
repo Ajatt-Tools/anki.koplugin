@@ -9,6 +9,8 @@ assignees: ''
 
 Before creating an issue, please check if you're using the most up-to-date version of the plugin! Reinstall it if necessary.
 
+If you're using a non stable KOReader version (one of the nightly builds), you may want to use the [nightly](https://github.com/Ajatt-Tools/anki.koplugin/issues/53#issuecomment-2688753848) branch instead.
+
 * KOReader version:
 
 **Describe the Issue**
