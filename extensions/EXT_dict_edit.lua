@@ -1,4 +1,4 @@
-local conf = require("configuration")
+local conf = require("anki_configuration")
 local DictEdit = {
     description = "This extension can be used to replace certain patterns in specific dictionaries.",
     enabled_dictionaries = {

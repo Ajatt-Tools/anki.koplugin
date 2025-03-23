@@ -5,7 +5,7 @@ local InputDialog = require("ui/widget/inputdialog")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local util = require("util")
 local List = require("lua_utils.list")
-local config = require("configuration")
+local config = require("anki_configuration")
 
 local general_settings = { "generic_settings", "General Settings" }
 local note_settings = { "note_settings", "Anki Note Settings" }

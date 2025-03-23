@@ -16,7 +16,7 @@ local _ = require("gettext")
 local lfs = require("libs/libkoreader-lfs")
 local AnkiConnect = require("ankiconnect")
 local AnkiNote = require("ankinote")
-local Configuration = require("configuration")
+local Configuration = require("anki_configuration")
 
 local AnkiWidget = Widget:extend {
     known_document_profiles = LuaSettings:open(DataStorage:getSettingsDir() .. "/anki_profiles.lua"),

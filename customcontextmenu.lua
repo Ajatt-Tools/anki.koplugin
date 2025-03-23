@@ -14,7 +14,7 @@ local VerticalGroup = require("ui/widget/verticalgroup")
 local VerticalSpan = require("ui/widget/verticalspan")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Screen = Device.screen
-local config = require("configuration")
+local config = require("anki_configuration")
 
 local CustomContextMenu = FocusManager:extend{}
 

@@ -1,4 +1,4 @@
-local conf = require("configuration")
+local conf = require("anki_configuration")
 local CustomWordLookup = {
     description = "This plugin modifies the default addon behavior. Instead of saving the word selected in the book, it selects the headword in the dictionary entry itself."
 }

@@ -14,7 +14,7 @@ local DataStorage = require("datastorage")
 local Translator = require("ui/translator")
 local forvo = require("forvo")
 local u = require("lua_utils/utils")
-local conf = require("configuration")
+local conf = require("anki_configuration")
 
 local AnkiConnect = {
     settings_dir = DataStorage:getSettingsDir(),

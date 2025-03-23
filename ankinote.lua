@@ -1,7 +1,7 @@
 local logger = require("logger")
 local util = require("util")
 local u = require("lua_utils/utils")
-local conf = require("configuration")
+local conf = require("anki_configuration")
 
 local LANG_NOT_SET_ERROR = "Neither the dictionary, nor the document have its language set. See the FAQ section in the plugin's README."
 local AnkiNote = {

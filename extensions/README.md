@@ -45,3 +45,23 @@ function Extension:run(note)
 end
 return Extension
 ```
+
+### User configuration
+
+The user config can be accessed by importing the `anki_configuration.lua` module.
+
+The example below gets the entry for the `word_field` from the user config, and then saves it in the custom "word" and "key" fields.
+
+```lua
+local conf = require("anki_configuration")
+
+local JP_mining_note = {}
+
+function JP_mining_note:run(note)
+    local vocab_word = note.fields[conf.word_field:get_value()]
+    note.fields["word"] = vocab_word
+    note.fields["key"] = vocab_word
+    return note
+end
+return JP_mining_note
+```
