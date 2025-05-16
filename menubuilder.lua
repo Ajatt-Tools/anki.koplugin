@@ -46,6 +46,13 @@ local menu_entries = {
         conf_type = "bool",
     },
     {
+        id = "trust_first_dict",
+        group = general_settings,
+        name = "Use first lookup context",
+        description = "Blindly use word and sentence context from first lookup when doing nested lookups",
+        conf_type = "bool",
+    },
+    {
         id = "dupe_scope",
         group = general_settings,
         name = "Duplicate Scope",

@@ -94,6 +94,7 @@ local Configuration = {
     Setting:new{ id = 'def_field',          required = true },
     Setting:new{ id = 'dupe_scope',         default = 'deck' },
     Setting:new{ id = 'allow_dupes',        default = false },
+    Setting:new{ id = 'trust_first_dict',   default = false },
     Setting:new{ id = 'custom_tags',        default = {} },
     Setting:new{ id = 'enabled_extensions', default = {} },
     Setting:new{ id = 'context_field' },
