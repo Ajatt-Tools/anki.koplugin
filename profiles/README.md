@@ -29,6 +29,8 @@ local Config = {
     -- It is possible to toggle whether duplicate notes can be created. This can be of use if your note type contains the full sentence as first field (meaning this gets looked at for uniqueness)
     -- When multiple unknown words are present, it won't be possible to add both in this case, because the sentence would be the same.
     allow_dupes = false,
+    -- When adding words within nested windows (like a dictionary lookup from a dictionary window), take original lookup as word
+    trust_first_dict = false,
     -- The scope where ankiconnect will look to to find duplicates
     dupe_scope = "deck",
     -- api key - extra authentication supported by ankiconnect, see https://git.foosoft.net/alex/anki-connect#authentication
