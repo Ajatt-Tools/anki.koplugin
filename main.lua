@@ -303,6 +303,7 @@ end
 
 -- This function is called automatically for all tables extending from Widget
 function AnkiWidget:init()
+    self:registerDictButtons()
     self:load_extensions()
     -- allow propagating events to ankiconnect, we handle wifi related stuff in there
     table.insert(self, AnkiConnect)
@@ -433,18 +434,25 @@ function AnkiWidget:handle_events()
     end
 end
 
-function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
+function AnkiWidget:registerDictButtons()
     if self.ui and not self.ui.document then
         return
     end
     if self.ui.vocabbuilder and UIManager:isWidgetShown(self.ui.vocabbuilder.widget) then
         return
     end
+
     self.add_to_anki_btn = {
         id = "add_to_anki",
+        menu_text = _("Add to Anki"),
         text = _("Add to Anki"),
         font_bold = true,
-        callback = function()
+        insert_first = true,
+        row_group = "anki",
+        show_func = function(_)
+            return not (self.ui.vocabbuilder and UIManager:isWidgetShown(self.ui.vocabbuilder.widget))
+        end,
+        callback = function(popup_dict)
             self:set_profile(function()
                 self:check_conn(function()
                     self.current_note = AnkiNote:new(popup_dict)
@@ -452,7 +460,7 @@ function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
                 end)
             end)
         end,
-        hold_callback = function()
+        hold_callback = function(popup_dict)
             self:set_profile(function()
                 self:check_conn(function()
                     self.current_note = AnkiNote:new(popup_dict)
@@ -461,7 +469,7 @@ function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
             end)
         end,
     }
-    table.insert(buttons, 1, { self.add_to_anki_btn })
+    self.ui.dictionary:addToDictButtons(self.add_to_anki_btn)
 end
 
 return AnkiWidget
