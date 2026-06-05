@@ -54,7 +54,8 @@ function AnkiNote:get_word_context()
     end
     local provider = self.ui.document.provider
     if self.ui.document.getSelectedWordContext then
-        local before, after = self:get_custom_context(unpack(self.context))
+        local p = self.context.params
+        local before, after = self:get_custom_context(p.prev_s, p.prev_c, p.post_s, p.post_c)
         return before .. "<b>" .. self.popup_dict.word .. "</b>" .. after
     elseif provider == "mupdf" then -- CBZ
         local ocr_text = self.ui['Mokuro'] and self.ui['Mokuro']:get_selection()
@@ -66,17 +67,17 @@ end
 
 --[[
 -- Returns the context before and after the lookup word, the amount of context depends on the following parameters
--- @param pre_s: amount of sentences prepended
--- @param pre_c: amount of characters prepended
+-- @param prev_s: amount of sentences prepended
+-- @param prev_c: amount of characters prepended
 -- @param post_s: amount of sentences appended
 -- @param post_c: amount of characters appended
 --]]
-function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
-    logger.info("AnkiNote#get_custom_context()", pre_s, pre_c, post_s, post_c)
-    -- called when initial size `self.context_size` becomes too small.
+function AnkiNote:get_custom_context(prev_s, prev_c, post_s, post_c)
+    logger.info("AnkiNote#get_custom_context()", prev_s, prev_c, post_s, post_c)
+    -- called when initial buffer_size becomes too small.
     local function expand_content()
-        self.context_size = self.context_size + self.context_size
-        self:init_context_buffer(self.context_size)
+        self.context.params.buffer_size = self.context.params.buffer_size + self.context.params.buffer_size
+        self:init_context_buffer(self.context.params.buffer_size)
     end
 
     -- apparently the mupdf provider does not add the trailing/leading spaces, so we have to do it ourselves
@@ -91,49 +92,58 @@ function AnkiNote:get_custom_context(pre_s, pre_c, post_s, post_c)
     local delims_map = u.to_set(util.splitToChars("？」。.?!！"))
     -- calculate the slice of the `prev_context_table` array that should be prepended to the lookupword
     local prev_idx, prev_s_idx = 0, 0
-    while prev_s_idx < pre_s do
-        if #self.prev_context_table <= prev_idx then expand_content() end
-        -- if we're still out of bounds after expanding content we're at the beginning of the doc
-        if #self.prev_context_table <= prev_idx then break end
-        local idx = #self.prev_context_table - prev_idx
-        local ch = self.prev_context_table[idx]
-        assert(ch ~= nil, ("Something went wrong when parsing previous context! idx: %d, context_table size: %d"):format(idx, #self.prev_context_table))
+    while prev_s_idx < prev_s do
+        if #self.context.buffer.prev_table <= prev_idx then expand_content() end
+        -- if we're still out of bounds after expanding content we're at the beginning of the doc or there's no text layer (e.g., OCR-only PDFs)
+        if #self.context.buffer.prev_table <= prev_idx then break end
+        local idx = #self.context.buffer.prev_table - prev_idx
+        local ch = self.context.buffer.prev_table[idx]
+        assert(ch ~= nil, ("Something went wrong when parsing previous context! idx: %d, context_table size: %d"):format(idx, #self.context.buffer.prev_table))
         if delims_map[ch] then
             prev_s_idx = prev_s_idx + 1
         end
         prev_idx = prev_idx + 1
     end
-    if prev_idx > 0 then
-        -- do not include the trailing character (if we parsed any sentences above)
-        prev_idx = prev_idx - 1
+    self.context.buffer.prev_exhausted = prev_s_idx < prev_s
+    logger.info("prev exhausted", self.context.buffer.prev_exhausted)
+    local prepended_content = ""
+    if not self.context.buffer.prev_exhausted then
+        if prev_idx > 0 then
+            -- do not include the trailing character (if we parsed any sentences above)
+            prev_idx = prev_idx - 1
+        end
+        prev_idx = prev_idx + prev_c
+        if #self.context.buffer.prev_table <= prev_idx then expand_content() end
+        self.context.buffer.prev_exhausted =  #self.context.buffer.prev_table <= prev_idx
+        logger.info("prev exhausted", self.context.buffer.prev_exhausted)
+        local i, j = #self.context.buffer.prev_table - prev_idx + 1, #self.context.buffer.prev_table
+        prepended_content = add_spacing(table.concat(self.context.buffer.prev_table, "", i, j))
     end
-    prev_idx = prev_idx + pre_c
-    if #self.prev_context_table <= prev_idx then expand_content() end
-    local i, j = #self.prev_context_table - prev_idx + 1, #self.prev_context_table
-    local prepended_content = add_spacing(table.concat(self.prev_context_table, "", i, j))
 
     -- calculate the slice of the `next_context_table` array that should be appended to the lookupword
     -- `next_idx` starts at 1 because that's the first index in the table
     local next_idx, next_s_idx = 1, 0
     while next_s_idx < post_s do
-        if next_idx > #self.next_context_table then expand_content() end
+        if next_idx > #self.context.buffer.next_table then expand_content() end
         -- if we're still out of bounds after expanding content we're at the end of the doc
-        if next_idx > #self.next_context_table then break end
-        local ch = self.next_context_table[next_idx]
-        assert(ch ~= nil, ("Something went wrong when parsing next context! idx: %d, context_table size: %d"):format(next_idx, #self.next_context_table))
+        if next_idx > #self.context.buffer.next_table then break end
+        local ch = self.context.buffer.next_table[next_idx]
+        assert(ch ~= nil, ("Something went wrong when parsing next context! idx: %d, context_table size: %d"):format(next_idx, #self.context.buffer.next_table))
         if delims_map[ch] then
             next_s_idx = next_s_idx + 1
         end
         next_idx = next_idx + 1
     end
-    -- do not include the trailing character
-    next_idx = next_idx - 1
-    next_idx = next_idx + post_c
-    if next_idx > #self.next_context_table then expand_content() end
-    local appended_content = add_spacing(table.concat(self.next_context_table, "", 1, next_idx), 1)
-    -- These 2 variables can be used to detect if any content was prepended / appended
-    self.has_prepended_content = prev_idx > 0
-    self.has_appended_content = next_idx > 0
+    self.context.buffer.next_exhausted = next_s_idx < post_s
+    local appended_content = ""
+    if not self.context.buffer.next_exhausted then
+        -- do not include the trailing character
+        next_idx = next_idx - 1
+        next_idx = next_idx + post_c
+        if next_idx > #self.context.buffer.next_table then expand_content() end
+        self.context.buffer.next_exhausted = next_idx > #self.context.buffer.next_table
+        appended_content = add_spacing(table.concat(self.context.buffer.next_table, "", 1, next_idx), 1)
+    end
     return prepended_content, appended_content
 end
 
@@ -243,21 +253,24 @@ function AnkiNote:init_context_buffer(size)
     local skipped_chars = u.to_set(util.splitToChars(("\n\r")))
     local prev_c, next_c = self.ui.highlight:getSelectedWordContext(size)
     -- pass trimmed word context along to be modified
-    prev_c = prev_c .. self.word_trim.before
-    next_c = self.word_trim.after .. next_c
-    self.prev_context_table = {}
+    prev_c = (prev_c or "") .. self.word_trim.before
+    next_c = self.word_trim.after .. (next_c or "")
+    self.context.buffer.prev_table = {}
     for _, ch in ipairs(util.splitToChars(prev_c)) do
-        if not skipped_chars[ch] then table.insert(self.prev_context_table, ch) end
+        if not skipped_chars[ch] then table.insert(self.context.buffer.prev_table, ch) end
     end
-    self.next_context_table = {}
+    self.context.buffer.next_table = {}
     for _, ch in ipairs(util.splitToChars(next_c)) do
-        if not skipped_chars[ch] then table.insert(self.next_context_table, ch) end
+        if not skipped_chars[ch] then table.insert(self.context.buffer.next_table, ch) end
     end
-    logger.info(("after reinit: prev table = %d, next table = %d"):format(#self.prev_context_table, #self.next_context_table))
+    logger.info(("after reinit: prev table = %d, next table = %d"):format(#self.context.buffer.prev_table, #self.context.buffer.next_table))
 end
 
-function AnkiNote:set_custom_context(pre_s, pre_c, post_s, post_c)
-    self.context = { pre_s, pre_c, post_s, post_c }
+function AnkiNote:set_custom_context(prev_s, prev_c, post_s, post_c)
+    self.context.params.prev_s = prev_s
+    self.context.params.prev_c = prev_c
+    self.context.params.post_s = post_s
+    self.context.params.post_c = post_c
 end
 
 function AnkiNote:add_tags(tags)
@@ -291,9 +304,32 @@ end
 
 function AnkiNote:new(popup_dict)
     local new = {
-        context_size = 50,
         popup_dict = popup_dict,
         selected_dict = popup_dict.results[popup_dict.dict_index],
+        context = {
+            -- contains what the user wants to see, amount of sentences/characters before/after each word
+            -- these params are modified in customcontextwindow.lua
+            params = {
+                prev_s = tonumber(conf.prev_sentence_count:get_value()),
+                prev_c = 0,
+                post_s = tonumber(conf.next_sentence_count:get_value()),
+                post_c = 0,
+                -- Size of each getSelectedWordContext fetch; doubles each time we exhaust it
+                -- 25 → 50 → 100 → ...
+                buffer_size = 25,
+            },
+            -- raw data as returned by KOReader
+            -- Populated by init_context_buffer, consumed by get_custom_context.
+            buffer = {
+                -- array of (UTF-8) characters representing context before/after the selected word
+                prev_table = {},
+                next_table = {},
+                -- True when init_context_buffer could not grow prev or next any further
+                -- (reached the start/end of the document or there's no text layer).
+                prev_exhausted = false,
+                next_exhausted = false,
+            },
+        },
         -- indicates that popup_dict relates to word in book
         -- this can still be set to false later when the user looks up a word in a book, but then modifies the looked up word
         contextual_lookup = self.ui.highlight.selected_text ~= nil,
@@ -308,11 +344,6 @@ function AnkiNote:new(popup_dict)
     local note = setmetatable(new, new_mt)
     note:set_word_trim()
     note:load_extensions()
-    -- TODO this can be delayed
-    if note.contextual_lookup then
-        note:init_context_buffer(note.context_size)
-        note:set_custom_context(tonumber(conf.prev_sentence_count:get_value()), 0, tonumber(conf.next_sentence_count:get_value()), 0)
-    end
     return note
 end
 

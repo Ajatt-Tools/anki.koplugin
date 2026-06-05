@@ -73,31 +73,34 @@ function CustomContextMenu:init()
     local btn_width = math.floor( ((inner_width+frame_padding) - nb_span_units * button_span_unit_width) * (1/6))
 
     -- create some helper functions
+    -- prev/next_c can go negative when 0 sentences, >0 chars are displayed, user presses remove_sentence to get rid of chars
     local update = function(opts)
         self.prev_c_cnt = opts.prev_c or self.prev_c_cnt
-        self.prev_s_cnt = opts.prev_s or self.prev_s_cnt
+        self.prev_s_cnt = math.max(0, opts.prev_s or self.prev_s_cnt)
         self.next_c_cnt = opts.next_c or self.next_c_cnt
-        self.next_s_cnt = opts.next_s or self.next_s_cnt
+        self.next_s_cnt = math.max(0, opts.next_s or self.next_s_cnt)
         self:update_context()
     end
-    local can_prepend = function() return self.note.has_prepended_content end
-    local can_append = function() return self.note.has_appended_content end
+    local can_remove_prev = function() return self.prev_s_cnt > 0 or self.prev_c_cnt > 0 end
+    local can_remove_next = function() return self.next_s_cnt > 0 or self.next_c_cnt > 0 end
+    local can_append_prev = function() return not self.note.context.buffer.prev_exhausted end
+    local can_append_next = function() return not self.note.context.buffer.next_exhausted end
     local prev_c_inc = function(inc) update({ prev_c = self.prev_c_cnt + inc}) end
     local next_c_inc = function(inc) update({ next_c = self.next_c_cnt + inc}) end
     -- char counter is reset to 0 when sentence count is changed
     local prev_s_inc = function(inc) update({ prev_c = 0, prev_s = self.prev_s_cnt + inc}) end
     local next_s_inc = function(inc) update({ next_c = 0, next_s = self.next_s_cnt + inc}) end
 
-    local remove_prev_sentence = make_button("⏩", btn_width, function() prev_s_inc(-1) end, can_prepend)
-    local remove_prev_char =     make_button("1-", btn_width, function() prev_c_inc(-1) end, can_prepend)
-    local append_prev_char =     make_button("+1", btn_width, function() prev_c_inc(1) end)
-    local append_prev_sentence = make_button("⏪", btn_width, function() prev_s_inc(1) end)
+    local remove_prev_sentence = make_button("⏩", btn_width, function() prev_s_inc(-1) end, can_remove_prev)
+    local remove_prev_char =     make_button("1-", btn_width, function() prev_c_inc(-1) end, can_remove_prev)
+    local append_prev_char =     make_button("+1", btn_width, function() prev_c_inc(1) end, can_append_prev)
+    local append_prev_sentence = make_button("⏪", btn_width, function() prev_s_inc(1) end, can_append_prev)
     local reset_prev =           make_button("Reset", btn_width*2, function() self:reset_prev(); return self:update_context() end)
 
-    local remove_next_sentence = make_button("⏪", btn_width, function() next_s_inc(-1) end, can_append)
-    local remove_next_char =     make_button("-1", btn_width, function() next_c_inc(-1) end, can_append)
-    local append_next_char =     make_button("1+", btn_width, function() next_c_inc(1) end)
-    local append_next_sentence = make_button("⏩", btn_width, function() next_s_inc(1) end)
+    local remove_next_sentence = make_button("⏪", btn_width, function() next_s_inc(-1) end, can_remove_next)
+    local remove_next_char =     make_button("-1", btn_width, function() next_c_inc(-1) end, can_remove_next)
+    local append_next_char =     make_button("1+", btn_width, function() next_c_inc(1) end, can_append_next)
+    local append_next_sentence = make_button("⏩", btn_width, function() next_s_inc(1) end, can_append_next)
     local reset_next =           make_button("Reset", btn_width*2, function() self:reset_next(); self:update_context() end)
 
     self.top_row = HorizontalGroup:new{
