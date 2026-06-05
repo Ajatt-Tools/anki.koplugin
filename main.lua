@@ -340,9 +340,18 @@ function AnkiWidget:extend_doc_settings(filepath, document_properties)
         title = get_prop('display_title') or get_prop('title'),
         author = get_prop('author') or get_prop('authors'),
         description = get_prop('description'),
-        current_page = function() return self.ui.view.state.page end,
+        current_page = function()
+            return self.ui.view.state.page
+                or self.ui:getCurrentPage()
+                or -1
+        end,
         language = document_properties.language,
-        pages = function() return document_properties.pages or self.ui.doc_settings:readSetting("doc_pages") end
+        pages = function()
+            return document_properties.pages
+                or self.ui.doc_settings:readSetting("doc_pages")
+                or self.ui.document:getPageCount()
+                or -1
+        end
     }
     local metadata_mt = {
         __index = function(t, k) return rawget(t, k) or "N/A" end
@@ -413,14 +422,14 @@ function AnkiWidget:handle_events()
             table.insert(buttons, 1, { self.add_to_anki_btn })
         end
         local filepath = doc_settings.data.doc_path
-        self:extend_doc_settings(filepath, self.ui.bookinfo:getDocProps(filepath, doc_settings.doc_props))
+        self:extend_doc_settings(filepath, self.ui.doc_props)
     end
 
     self.onBookMetadataChanged = function(obj, updated_props)
         -- no need to try doing this when a doc was modified from the file browser, we'll redo this on doc load
         if not self.ui.document then return end
         local filepath = updated_props.filepath
-        self:extend_doc_settings(filepath, self.ui.bookinfo:getDocProps(filepath, updated_props.doc_props))
+        self:extend_doc_settings(filepath, updated_props.doc_props)
     end
 end
 
