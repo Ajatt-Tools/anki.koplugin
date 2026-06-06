@@ -265,7 +265,7 @@ function AnkiWidget:buildSettings()
         { text = ("Edit profiles"), sub_item_table = profiles },
         { text = ("anki-connect settings"), keep_menu_open = true, callback = function() self:show_connection_widget() end },
         {
-            text = ("Sync (%d) offline note(s)"):format(#AnkiConnect.local_notes),
+            text_func = function() return ("Sync (%d) offline note(s)"):format(#AnkiConnect.local_notes) end,
             enabled_func = function() return #AnkiConnect.local_notes > 0 end,
             callback = function() self:check_conn(function() AnkiConnect:sync_offline_notes() end) end
         },
