@@ -44,8 +44,9 @@ local menu_entries = {
         id = "dupe_scope",
         group = general_settings,
         name = "Duplicate Scope",
-        description = "Anki Scope in which to look for duplicates",
-        conf_type = "text",
+        description = "Anki scope in which to look for duplicates: within the target deck, or across the whole collection.",
+        conf_type = "select",
+        choices = { "deck", "collection" },
     },
      {
         id = "custom_tags",
@@ -277,7 +278,7 @@ function MenuConfigOpt:fetch_choices()
     return true, result
 end
 
-function MenuConfigOpt:show_choice_dialog(choices, touchmenu_instance)
+function MenuConfigOpt:show_choice_dialog(choices, touchmenu_instance, allow_manual)
     table.sort(choices)
     local current = self:get_value_nodefault()
     local choice_dialog
@@ -294,13 +295,16 @@ function MenuConfigOpt:show_choice_dialog(choices, touchmenu_instance)
             end,
         }})
     end
-    table.insert(buttons, {{
-        text = "Enter manually",
-        callback = function()
-            UIManager:close(choice_dialog)
-            self:build_single_dialog(touchmenu_instance)
-        end,
-    }})
+    -- API-backed lists can be incomplete, so allow typing a value; fixed enums don't need it
+    if allow_manual ~= false then
+        table.insert(buttons, {{
+            text = "Enter manually",
+            callback = function()
+                UIManager:close(choice_dialog)
+                self:build_single_dialog(touchmenu_instance)
+            end,
+        }})
+    end
     choice_dialog = ButtonDialog:new{
         title = self.name,
         title_align = "center",
@@ -311,6 +315,10 @@ function MenuConfigOpt:show_choice_dialog(choices, touchmenu_instance)
 end
 
 function MenuConfigOpt:build_select_dialog(touchmenu_instance)
+    -- fixed set of choices (e.g. dupe_scope): no anki-connect lookup needed
+    if self.choices then
+        return self:show_choice_dialog({ unpack(self.choices) }, touchmenu_instance, false)
+    end
     local function run()
         local ok, choices_or_err = self:fetch_choices()
         if not ok then

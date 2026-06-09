@@ -115,6 +115,8 @@ The **Anki Deckname**, **Anki Note Type** and the various note field settings (W
 - This requires the anki-connect URL to be configured and Anki to be reachable (WiFi will be brought up if needed). If the list can't be fetched, you'll be informed and can still enter the value manually.
 - Every selection dialog also has an **Enter manually** button, in case you want to set a value that isn't (yet) present in Anki.
 
+**Duplicate Scope** is also picked from a list, but a fixed one (no anki-connect lookup): `deck` checks for duplicates only within the target deck, `collection` checks across the whole collection.
+
 ## FAQ
 
 <details>
