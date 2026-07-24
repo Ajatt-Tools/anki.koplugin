@@ -317,6 +317,7 @@ function AnkiWidget:init()
 
     self.ui.menu:registerToMainMenu(self)
     self:handle_events()
+    self:registerDictButtons()
 end
 
 function AnkiWidget:extend_doc_settings(filepath, document_properties)
@@ -462,6 +463,32 @@ function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
         end,
     }
     table.insert(buttons, 1, { self.add_to_anki_btn })
+end
+
+function AnkiWidget:registerDictButtons()
+    if not self.ui or not self.ui.dictionary then return end
+    self.ui.dictionary:addToDictButtons({
+          id = "add_to_anki",
+          text = _("Add to Anki"),
+          menu_text = _("Anki"),
+          font_bold = true,
+          callback = function(popup_dict)
+              self:set_profile(function()
+                  self:check_conn(function()
+                      self.current_note = AnkiNote:new(popup_dict)
+                      AnkiConnect:add_note(self.current_note)
+                  end)
+              end)
+          end,
+          hold_callback = function(popup_dict)
+              self:set_profile(function()
+                  self:check_conn(function()
+                      self.current_note = AnkiNote:new(popup_dict)
+                      self:show_config_widget()
+                  end)
+              end)
+          end,
+    })
 end
 
 return AnkiWidget
