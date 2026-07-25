@@ -55,7 +55,9 @@ local Config = {
     meta_field = "Notes",
 
     -- The field name where word pronunciation audio will be sent to.
-    audio_field = "VocabAudio",
+    -- Legacy profiles may still use audio_field; that is used if word_audio_field is unset.
+    word_audio_field = "VocabAudio",
+    -- audio_field = "VocabAudio",
 
     -- The field name where sentence pronunciation audio will be sent to.
     sentence_audio_field = "SentAudio",

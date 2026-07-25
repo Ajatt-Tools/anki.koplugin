@@ -69,10 +69,10 @@ These settings are configured via a user profile, see [Profiles](profiles/README
   
   #### Dictionary definition (`def_field`)
   The dictionary entry that was selected when pressing the button.
-  #### Audio (`audio_field` / `sentence_audio_field` / drivers)
+  #### Audio (`word_audio_field` / `sentence_audio_field` / drivers)
   When audio fields and drivers are configured, the plugin fetches pronunciation audio and attaches it to the note.
 
-  - `audio_field` — Anki field that receives **word** audio
+  - `word_audio_field` — Anki field that receives **word** audio (falls back to legacy `audio_field` if unset)
   - `sentence_audio_field` — Anki field that receives **sentence** audio
   - `word_audio_driver` / `sentence_audio_driver` — source to use (`forvo` by default for word, `none` for sentence). Set to `none` to skip. Additional drivers can be added under [`audio_drivers/`](audio_drivers/README.md).
   - `word_audio_driver_settings` / `sentence_audio_driver_settings` — per-driver options (e.g. VOICEVOX URL)
@@ -118,7 +118,7 @@ When editing a profile which is *not* the default one, it's possible to 'unset' 
 
 <details>
   <summary>Plugin can't detect the language of the word</summary> 
-  When the user has defined a value for `audio_field` or `sentence_audio_field` and selected an audio driver other than `none`, the plugin needs to know the language of the word you looked up, so it can look for the correct audio file.
+  When the user has defined a value for `word_audio_field` (or legacy `audio_field`) or `sentence_audio_field` and selected an audio driver other than `none`, the plugin needs to know the language of the word you looked up, so it can look for the correct audio file.
 
 
   It looks for this language in 2 places

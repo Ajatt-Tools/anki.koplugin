@@ -77,7 +77,8 @@ local Configuration = {
     Setting:new{ id = 'enabled_extensions', default = {} },
     Setting:new{ id = 'context_field' },
     Setting:new{ id = 'meta_field' },
-    Setting:new{ id = 'audio_field' },
+    Setting:new{ id = 'audio_field' }, -- legacy alias for word_audio_field
+    Setting:new{ id = 'word_audio_field' },
     Setting:new{ id = 'sentence_audio_field' },
     Setting:new{ id = 'word_audio_driver', default = 'forvo' },
     Setting:new{ id = 'word_audio_driver_settings', default = {} },
@@ -90,6 +91,15 @@ local Configuration = {
 }
 for _,s in ipairs(Configuration) do
     Configuration[s.id] = s
+end
+
+--- Word audio Anki field. Prefers word_audio_field; falls back to legacy audio_field.
+function Configuration:get_word_audio_field()
+    local field = self.word_audio_field:get_value()
+    if field and field ~= "" then
+        return field
+    end
+    return self.audio_field:get_value()
 end
 
 --- Word audio driver id.

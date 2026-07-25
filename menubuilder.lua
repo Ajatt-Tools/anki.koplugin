@@ -78,10 +78,10 @@ local menu_entries = {
         description = "Anki field to store metadata about the current book.",
     },
      {
-        id = "audio_field",
+        id = "word_audio_field",
         group = note_settings,
         name = "Word Audio Field",
-        description = "Anki field to store word pronunciation audio in.",
+        description = "Anki field to store word pronunciation audio in. Falls back to legacy audio_field if unset.",
     },
      {
         id = "sentence_audio_field",

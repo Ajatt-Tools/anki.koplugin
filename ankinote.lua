@@ -215,7 +215,7 @@ function AnkiNote:build()
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
         field_callbacks = {
             word_audio = (function()
-                local audio_field = conf.audio_field:get_value()
+                local audio_field = conf:get_word_audio_field()
                 local audio_driver = conf:get_word_audio_driver()
                 local language = nil
                 if audio_field and audio_driver and audio_driver ~= "none" then
