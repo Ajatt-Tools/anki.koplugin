@@ -12,7 +12,8 @@ local InfoMessage = require("ui/widget/infomessage")
 local NetworkMgr = require("ui/network/manager")
 local DataStorage = require("datastorage")
 local Translator = require("ui/translator")
-local forvo = require("forvo")
+local base64 = require("lua_utils/base64")
+local AudioDrivers = require("audio_drivers")
 local u = require("lua_utils/utils")
 local conf = require("anki_configuration")
 
@@ -89,7 +90,7 @@ function AnkiConnect:POST(opts)
     local url = assert(opts.url, "Missing URL!")
     local scheme, basic_auth, host = url:match("^(https?://)([^:]+:[^@]+)@(.+)")
     if basic_auth then
-        headers["Authorization"] = "Basic " .. forvo.base64e(basic_auth)
+        headers["Authorization"] = "Basic " .. base64.encode(basic_auth)
         url = scheme .. host
     end
     local sink = {}
@@ -121,22 +122,60 @@ function AnkiConnect:set_translated_context(_, context)
     return true, result
 end
 
-function AnkiConnect:set_forvo_audio(field, word, language)
-    logger.info(("Querying Forvo audio for '%s' in language: %s"):format(word, language))
-    local ok, forvo_url = forvo.get_pronunciation_url(word, language)
-    if not ok then
-        if forvo_url == "FORVO_403" then
-            -- For 403 errors, return true but no audio data
-            logger.warn("Forvo returned 403 error - continuing without audio")
-            return true, nil
-        end
-        return false, ("Could not connect to forvo: %s"):format(forvo_url)
+--- Normalize a driver audio result into an AnkiConnect addNote audio object.
+-- Accepts either { url, filename } or { data, filename }. Prefers data when both are present.
+-- Returns ok, audio_or_err
+function AnkiConnect:normalize_audio_payload(field, result)
+    if type(result) ~= "table" then
+        return false, "Audio driver returned an invalid result"
     end
-    return true, forvo_url and {
-        url = forvo_url,
-        filename = string.format("forvo_%s.ogg", word),
-        fields = { field }
-    } or nil
+    if not result.filename or tostring(result.filename) == "" then
+        return false, "Audio driver result missing filename"
+    end
+    local has_data = result.data ~= nil and result.data ~= ""
+    local has_url = result.url ~= nil and result.url ~= ""
+    if not has_data and not has_url then
+        return false, "Audio driver result must include url or data"
+    end
+    local audio = {
+        filename = result.filename,
+        fields = { field },
+    }
+    if has_data then
+        audio.data = result.data
+    else
+        audio.url = result.url
+    end
+    return true, audio
+end
+
+function AnkiConnect:set_note_audio(field, word, language, driver_id)
+    if not driver_id or driver_id == "none" then
+        return true, nil
+    end
+    local driver = AudioDrivers:get(driver_id)
+    if not driver then
+        return false, ("Unknown audio driver: %s"):format(driver_id)
+    end
+    logger.info(("Querying audio via driver '%s' for '%s' in language: %s"):format(driver_id, word, language))
+    local ok, result = driver:get_audio({
+        word = word,
+        language = language,
+        field = field,
+        settings = conf:get_audio_driver_settings(driver_id),
+    })
+    if not ok then
+        return false, result
+    end
+    if not result then
+        logger.warn(("Audio driver '%s' returned no audio for '%s' - note will be created without audio"):format(driver_id, word))
+        return true, nil
+    end
+    local norm_ok, audio_or_err = self:normalize_audio_payload(field, result)
+    if norm_ok then
+        logger.info(("Audio attached via '%s' (%s)"):format(driver_id, audio_or_err.url and "url" or "data"))
+    end
+    return norm_ok, audio_or_err
 end
 
 function AnkiConnect:set_image_data(field, img_path)
@@ -148,7 +187,7 @@ function AnkiConnect:set_image_data(field, img_path)
     if not img_f then
         return true
     end
-    local data = forvo.base64e(img_f:read("*a"))
+    local data = base64.encode(img_f:read("*a"))
     logger.info(("added %d bytes of base64 encoded data"):format(#data))
     os.remove(img_path)
     return true, {

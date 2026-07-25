@@ -1,0 +1,138 @@
+--[[
+VOICEVOX audio driver — synthesizes pronunciation via a VOICEVOX Engine HTTP API.
+
+API flow:
+  1. POST /audio_query?speaker=<id>&text=<word>  → AudioQuery JSON
+  2. POST /synthesis?speaker=<id>  (JSON body) → WAV bytes
+]]
+
+local http = require("socket.http")
+local socket = require("socket")
+local ltn12 = require("ltn12")
+local socketutil = require("socketutil")
+local base64 = require("lua_utils/base64")
+local logger = require("logger")
+
+local VoiceVox = {
+    id = "voicevox",
+    name = "VOICEVOX",
+    description = "Synthesize pronunciation audio via a VOICEVOX Engine server.",
+    settings = {
+        {
+            id = "url",
+            name = "Engine URL",
+            conf_type = "text",
+            description = "Base URL of the VOICEVOX Engine (e.g. http://192.168.0.1:50121).",
+        },
+        {
+            id = "speaker_id",
+            name = "Speaker Id",
+            conf_type = "text",
+            description = "VOICEVOX style/speaker id used for synthesis (e.g. 10000).",
+        },
+    },
+}
+
+local function url_encode(str)
+    local char_to_hex = function(c)
+        return string.format("%%%02X", string.byte(c))
+    end
+    if str == nil then
+        return
+    end
+    str = str:gsub("\n", "\r\n")
+    str = str:gsub("([^%w _%%%-%.~])", char_to_hex)
+    str = str:gsub(" ", "+")
+    return str
+end
+
+local function normalize_base_url(url)
+    return (url:gsub("/+$", ""))
+end
+
+local function http_post(url, body, content_type)
+    local sink = {}
+    socketutil:set_timeout(socketutil.LARGE_BLOCK_TIMEOUT, socketutil.LARGE_TOTAL_TIMEOUT)
+    local headers = {
+        ["Accept"] = "*/*",
+    }
+    local source = nil
+    if body then
+        headers["Content-Type"] = content_type or "application/json"
+        headers["Content-Length"] = #body
+        source = ltn12.source.string(body)
+    else
+        headers["Content-Length"] = 0
+    end
+    local request = {
+        url = url,
+        method = "POST",
+        headers = headers,
+        sink = ltn12.sink.table(sink),
+        source = source,
+    }
+    local code, _, status = socket.skip(1, http.request(request))
+    socketutil:reset_timeout()
+    if code == 200 then
+        return true, table.concat(sink)
+    end
+    if type(code) == "string" then
+        return false, code
+    end
+    return false, ("[%s]: %s"):format(tostring(code or -1), status or "")
+end
+
+local function sanitize_filename(word)
+    -- Strip path separators / control chars; keep Unicode so Japanese words stay unique.
+    local cleaned = word:gsub("[/\\%z\r\n]", "_"):gsub("%s+", "_")
+    if cleaned == "" then
+        cleaned = "word"
+    end
+    return cleaned
+end
+
+-- ctx: { word, language, field, settings }
+function VoiceVox:get_audio(ctx)
+    local settings = ctx.settings or {}
+    local base_url = settings.url
+    local speaker_id = settings.speaker_id
+    local word = ctx.word
+
+    if not base_url or base_url == "" then
+        return false, "VOICEVOX Engine URL is not configured"
+    end
+    if not speaker_id or speaker_id == "" then
+        return false, "VOICEVOX Speaker Id is not configured"
+    end
+    if not word or word == "" then
+        return true, nil
+    end
+
+    base_url = normalize_base_url(base_url)
+    local speaker = url_encode(tostring(speaker_id))
+    local text = url_encode(word)
+
+    local query_url = ("%s/audio_query?speaker=%s&text=%s"):format(base_url, speaker, text)
+    logger.info(("VOICEVOX: requesting audio_query for '%s' (speaker %s)"):format(word, speaker_id))
+    local ok, query_or_err = http_post(query_url, nil)
+    if not ok then
+        return false, ("VOICEVOX audio_query failed: %s"):format(query_or_err)
+    end
+
+    local synthesis_url = ("%s/synthesis?speaker=%s"):format(base_url, speaker)
+    logger.info(("VOICEVOX: requesting synthesis for '%s'"):format(word))
+    local synth_ok, wav_or_err = http_post(synthesis_url, query_or_err, "application/json")
+    if not synth_ok then
+        return false, ("VOICEVOX synthesis failed: %s"):format(wav_or_err)
+    end
+    if not wav_or_err or #wav_or_err == 0 then
+        return false, "VOICEVOX synthesis returned empty audio"
+    end
+
+    return true, {
+        data = base64.encode(wav_or_err),
+        filename = string.format("voicevox_%s.wav", sanitize_filename(word)),
+    }
+end
+
+return VoiceVox

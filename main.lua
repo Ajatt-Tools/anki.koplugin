@@ -18,6 +18,7 @@ local _ = require("gettext")
 local lfs = require("libs/libkoreader-lfs")
 local AnkiConnect = require("ankiconnect")
 local AnkiNote = require("ankinote")
+local AudioDrivers = require("audio_drivers")
 local Configuration = require("anki_configuration")
 
 local AnkiWidget = WidgetContainer:extend {
@@ -208,6 +209,7 @@ end
 function AnkiWidget:buildSettings()
     local builder = MenuBuilder:new{
         extensions = self.extensions,
+        audio_drivers = AudioDrivers,
         ui = self.ui
     }
     local function make_new_profile(start_data)
@@ -304,6 +306,7 @@ end
 -- This function is called automatically for all tables extending from Widget
 function AnkiWidget:init()
     self:load_extensions()
+    AudioDrivers:load()
     -- allow propagating events to ankiconnect, we handle wifi related stuff in there
     table.insert(self, AnkiConnect)
     AnkiConnect:load_notes()

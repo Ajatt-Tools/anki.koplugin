@@ -69,8 +69,13 @@ These settings are configured via a user profile, see [Profiles](profiles/README
   
   #### Dictionary definition (`def_field`)
   The dictionary entry that was selected when pressing the button.
-  #### Audio (`audio_field`)
-  The plugin will query Forvo to get audio for the lookupword. The language used is determined by the dictionary's language, or by the book's language as fallback.
+  #### Audio (`audio_field` / `audio_driver`)
+  When an audio field and driver are configured, the plugin fetches pronunciation audio for the looked-up word and attaches it to the note.
+
+  - `audio_field` — Anki field that receives the audio
+  - `audio_driver` — which source to use (`forvo` by default, or `none` to skip). Additional drivers can be added under [`audio_drivers/`](audio_drivers/README.md).
+
+  The language used is determined by the dictionary's language, or by the book's language as fallback. Drivers may return either a remote URL or base64-encoded audio data for AnkiConnect.
   #### Metadata (`meta_field`)
   Some information about the book: author, title and page number.
   
@@ -109,7 +114,7 @@ When editing a profile which is *not* the default one, it's possible to 'unset' 
 
 <details>
   <summary>Plugin can't detect the language of the word</summary> 
-  When the user has defined a value for the `audio_field` in the config, the plugin needs to know the language of the word you looked up, so it can look for the correct audio file.
+  When the user has defined a value for the `audio_field` and selected an audio driver other than `none`, the plugin needs to know the language of the word you looked up, so it can look for the correct audio file.
 
 
   It looks for this language in 2 places
@@ -138,6 +143,6 @@ When editing a profile which is *not* the default one, it's possible to 'unset' 
   
     The expected format of this language is, like above, the ISO2 code. For example, to specify French, fill in 'fr'
   
-  If you don't care about having audio, you can leave the `audio_field` blank. This will cause this step to be skipped completely.
+  If you don't care about having audio, leave the `audio_field` blank or set `audio_driver` to `none`. This will cause this step to be skipped completely.
     
 </details>

@@ -54,9 +54,22 @@ local Config = {
     -- This metadata is parsed from the EPUB's metadata, or from the filename
     meta_field = "Notes",
 
-    -- The plugin can query Forvo for audio of the word you just looked up.
-    -- The field name where the audio will be sent to.
+    -- The field name where pronunciation audio will be sent to (leave blank to disable audio lookup).
     audio_field = "VocabAudio",
+
+    -- Which audio driver to use when audio_field is set.
+    -- Built-in: "forvo", "voicevox". Use "none" to skip audio even if audio_field is set.
+    -- See audio_drivers/README.md for adding custom drivers.
+    audio_driver = "forvo",
+
+    -- Per-driver settings, keyed by driver id. Example:
+    -- audio_driver_settings = {
+    --     voicevox = {
+    --         url = "http://192.168.0.1.lan:50121",
+    --         speaker_id = "10000",
+    --     },
+    -- },
+    audio_driver_settings = {},
 
     -- list of extensions which should be enabled, by default they are all off
     -- an extension is turned on by listing its filename in the table below

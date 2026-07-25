@@ -80,8 +80,25 @@ local menu_entries = {
      {
         id = "audio_field",
         group = note_settings,
-        name = "Forvo Audio Field",
-        description = "Anki field to store Forvo audio in.",
+        name = "Audio Field",
+        description = "Anki field to store pronunciation audio in.",
+    },
+     {
+        id = "audio_driver",
+        group = note_settings,
+        name = "Audio Driver",
+        description = "Source used to fetch pronunciation audio. Select None to skip audio.",
+        conf_type = "choice",
+        choices = function(self)
+            return self.audio_drivers:choices()
+        end,
+    },
+     {
+        id = "audio_driver_settings",
+        group = note_settings,
+        name = "Audio Driver Settings",
+        description = "Settings specific to the selected audio driver.",
+        conf_type = "audio_driver_settings",
     },
      {
         id = "img_field",
@@ -233,6 +250,108 @@ function MenuConfigOpt:build_checklist()
     return menu_items
 end
 
+function MenuConfigOpt:build_choice()
+    local menu_items = {}
+    local choices = self.choices
+    if type(choices) == "function" then
+        choices = choices(self)
+    end
+    for _, choice in ipairs(choices or {}) do
+        local item = {
+            text = choice.name or choice.id,
+            checked_func = function() return self:get_value() == choice.id end,
+            callback = function()
+                self:update_value(choice.id)
+            end,
+        }
+        if choice.description then
+            item.hold_callback = function()
+                UIManager:show(InfoMessage:new { text = choice.description, timeout = nil })
+            end
+        end
+        table.insert(menu_items, item)
+    end
+    return menu_items
+end
+
+function MenuConfigOpt:build_audio_driver_settings()
+    local driver_id_setting = config.audio_driver:copy {
+        active_luasettings = self.active_luasettings,
+        default_luasettings = self.default_luasettings,
+    }
+    local driver_id = driver_id_setting:get_value()
+    if not driver_id or driver_id == "none" then
+        return { { text = "No audio driver selected", enabled = false } }
+    end
+    local driver = self.audio_drivers:get(driver_id)
+    if not driver or not driver.settings or #driver.settings == 0 then
+        return { { text = "This driver has no settings", enabled = false } }
+    end
+
+    local menu_items = {}
+    for _, setting_def in ipairs(driver.settings) do
+        local conf_type = setting_def.conf_type or "text"
+        if conf_type == "bool" then
+            table.insert(menu_items, {
+                text = setting_def.name or setting_def.id,
+                keep_menu_open = true,
+                checked_func = function()
+                    local all = self:get_value_nodefault() or {}
+                    local driver_settings = all[driver_id] or {}
+                    local val = driver_settings[setting_def.id]
+                    if val == nil then return setting_def.default == true end
+                    return val == true
+                end,
+                callback = function()
+                    local all = util.tableDeepCopy(self:get_value_nodefault() or {})
+                    all[driver_id] = all[driver_id] or {}
+                    local current = all[driver_id][setting_def.id]
+                    if current == nil then current = setting_def.default end
+                    all[driver_id][setting_def.id] = not current
+                    self:update_value(all)
+                end,
+                hold_callback = setting_def.description and function()
+                    UIManager:show(InfoMessage:new { text = setting_def.description, timeout = nil })
+                end or nil,
+            })
+        else
+            table.insert(menu_items, {
+                text = setting_def.name or setting_def.id,
+                keep_menu_open = true,
+                callback = function()
+                    local all = util.tableDeepCopy(self:get_value_nodefault() or {})
+                    all[driver_id] = all[driver_id] or {}
+                    local current = all[driver_id][setting_def.id]
+                    if current == nil then current = setting_def.default or "" end
+                    local cb = function(dialog)
+                        local text = dialog:getInputText()
+                        if text == "" then
+                            all[driver_id][setting_def.id] = nil
+                        else
+                            all[driver_id][setting_def.id] = text
+                        end
+                        self:update_value(all)
+                        UIManager:close(dialog)
+                    end
+                    local input_dialog = MenuBuilder.build_single_dialog(
+                        setting_def.name or setting_def.id,
+                        tostring(current),
+                        setting_def.name or setting_def.id,
+                        setting_def.description,
+                        cb
+                    )
+                    UIManager:show(input_dialog)
+                    input_dialog:onShowKeyboard()
+                end,
+                hold_callback = setting_def.description and function()
+                    UIManager:show(InfoMessage:new { text = setting_def.description, timeout = nil })
+                end or nil,
+            })
+        end
+    end
+    return menu_items
+end
+
 function MenuConfigOpt:build_map_dialog()
     local function is_enabled(k)
         return (self:get_value_nodefault() or {})[k] ~= nil
@@ -296,6 +415,7 @@ end
 function MenuBuilder:new(opts)
     self.ui = opts.ui -- needed to get the enabled dictionaries
     self.extensions = opts.extensions
+    self.audio_drivers = opts.audio_drivers
     return self
 end
 
@@ -358,6 +478,10 @@ function MenuBuilder:convert_opt(opt)
         sub_item_entry['callback'] = function() return opt:build_list_dialog() end
     elseif opt.conf_type == "checklist" then
         sub_item_entry['sub_item_table'] = opt:build_checklist()
+    elseif opt.conf_type == "choice" then
+        sub_item_entry['sub_item_table_func'] = function() return opt:build_choice() end
+    elseif opt.conf_type == "audio_driver_settings" then
+        sub_item_entry['sub_item_table_func'] = function() return opt:build_audio_driver_settings() end
     elseif opt.conf_type == "map" then
         sub_item_entry['sub_item_table'] = opt:build_map_dialog()
     else -- TODO multitable

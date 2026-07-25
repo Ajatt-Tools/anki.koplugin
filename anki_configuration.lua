@@ -78,6 +78,8 @@ local Configuration = {
     Setting:new{ id = 'context_field' },
     Setting:new{ id = 'meta_field' },
     Setting:new{ id = 'audio_field' },
+    Setting:new{ id = 'audio_driver', default = 'forvo' },
+    Setting:new{ id = 'audio_driver_settings', default = {} },
     Setting:new{ id = 'image_field' },
     Setting:new{ id = 'translated_context_field' },
     Setting:new{ id = 'prev_sentence_count', default = '1' },
@@ -85,6 +87,12 @@ local Configuration = {
 }
 for _,s in ipairs(Configuration) do
     Configuration[s.id] = s
+end
+
+--- Return the settings table for a given audio driver id (from the active profile).
+function Configuration:get_audio_driver_settings(driver_id)
+    local all = self.audio_driver_settings:get_value() or {}
+    return all[driver_id] or {}
 end
 
 local plugin_directory = DataStorage:getFullDataDir() .. "/plugins/anki.koplugin/"

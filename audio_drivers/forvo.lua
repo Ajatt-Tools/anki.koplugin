@@ -2,14 +2,22 @@
 Copyright: Ren Tatsumoto and contributors
 License: GNU GPL, version 3 or later; http://www.gnu.org/licenses/gpl.html
 
-Utils for downloading pronunciations from Forvo
+Forvo audio driver — scrapes forvo.com for a pronunciation URL.
 ]]
 
 local http = require("socket.http")
 local socket = require("socket")
 local ltn12 = require("ltn12")
 local socketutil = require("socketutil")
+local base64 = require("lua_utils/base64")
+local logger = require("logger")
 
+local Forvo = {
+    id = "forvo",
+    name = "Forvo",
+    description = "Fetch pronunciation audio from forvo.com",
+    settings = {},
+}
 
 local function GET(url)
     local sink = {}
@@ -29,47 +37,13 @@ local function GET(url)
     if code == 200 then
         return table.concat(sink)
     end
-    -- Special handling for 403 error (likely rate limit or access restriction)
     if code == 403 then
         return false, "FORVO_403"
     end
     return false, ("[%d]: %s"):format(code or -1, status or "")
 end
 
--- http://lua-users.org/wiki/BaseSixtyFour
--- character table string
-local b = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-local function base64e(data)
-    return ((data:gsub('.', function(x) 
-        local r,b='',x:byte()
-        for i=8,1,-1 do r=r..(b%2^i-b%2^(i-1)>0 and '1' or '0') end
-        return r;
-    end)..'0000'):gsub('%d%d%d?%d?%d?%d?', function(x)
-        if (#x < 6) then return '' end
-        local c=0
-        for i=1,6 do c=c+(x:sub(i,i)=='1' and 2^(6-i) or 0) end
-        return b:sub(c+1,c+1)
-    end)..({ '', '==', '=' })[#data%3+1])
-end
-
-local function base64d(data)
-    data = string.gsub(data, '[^'..b..'=]', '')
-    return (data:gsub('.', function(x)
-        if (x == '=') then return '' end
-        local r,f='',(b:find(x)-1)
-        for i=6,1,-1 do r=r..(f%2^i-f%2^(i-1)>0 and '1' or '0') end
-        return r;
-    end):gsub('%d%d%d?%d?%d?%d?%d?%d?', function(x)
-        if (#x ~= 8) then return '' end
-        local c=0
-        for i=1,8 do c=c+(x:sub(i,i)=='1' and 2^(8-i) or 0) end
-        return string.char(c)
-    end))
-end
-
-
 local function url_encode(url)
-    -- https://gist.github.com/liukun/f9ce7d6d14fa45fe9b924a3eed5c3d99
     local char_to_hex = function(c)
         return string.format("%%%02X", string.byte(c))
     end
@@ -84,6 +58,7 @@ end
 
 local function get_pronunciation_url(word, language)
     local forvo_url = ('https://forvo.com/search/%s/%s'):format(url_encode(word), language)
+    -- logger.info(("Forvo: GET %s"):format(forvo_url))
     local forvo_page, err = GET(forvo_url)
     if not forvo_page then
         return false, err
@@ -94,12 +69,36 @@ local function get_pronunciation_url(word, language)
     if play_params then
         local iter = string.gmatch(play_params, "'(.-)'")
         local formats = { mp3 = iter(), ogg = iter() }
-        word_url = string.format('https://audio00.forvo.com/%s/%s', "ogg", base64d(formats["ogg"]))
+        if formats["ogg"] then
+            word_url = string.format('https://audio00.forvo.com/%s/%s', "ogg", base64.decode(formats["ogg"]))
+        end
+    else
+        logger.warn("Forvo: page fetched but no Play(...) pronunciation found (page may be blocked or empty)")
     end
     return true, word_url
 end
 
-return {
-    get_pronunciation_url = get_pronunciation_url,
-    base64e = base64e,
-}
+-- ctx: { word, language, field, settings }
+-- returns: ok, audio_or_nil_or_err
+function Forvo:get_audio(ctx)
+    local ok, forvo_url = get_pronunciation_url(ctx.word, ctx.language)
+    if not ok then
+        if forvo_url == "FORVO_403" then
+            -- Blocked by Forvo: continue note creation without audio
+            logger.warn("Forvo returned 403 - continuing without audio")
+            return true, nil
+        end
+        return false, ("Could not connect to forvo: %s"):format(forvo_url)
+    end
+    if not forvo_url then
+        logger.warn(("Forvo: no pronunciation URL for '%s' (%s) - continuing without audio"):format(ctx.word, ctx.language))
+        return true, nil
+    end
+    logger.info(("Forvo: using audio URL %s"):format(forvo_url))
+    return true, {
+        url = forvo_url,
+        filename = string.format("forvo_%s.ogg", ctx.word),
+    }
+end
+
+return Forvo

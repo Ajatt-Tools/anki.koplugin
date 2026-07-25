@@ -213,11 +213,19 @@ function AnkiNote:build()
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
         field_callbacks = {
-            audio = {
-                func = "set_forvo_audio",
-                field_name = conf.audio_field:get_value(),
-                args = { self.popup_dict.word, self:get_language() }
-            },
+            audio = (function()
+                local audio_field = conf.audio_field:get_value()
+                local audio_driver = conf.audio_driver:get_value()
+                local language = nil
+                if audio_field and audio_driver and audio_driver ~= "none" then
+                    language = self:get_language()
+                end
+                return {
+                    func = "set_note_audio",
+                    field_name = audio_field,
+                    args = { self.popup_dict.word, language, audio_driver }
+                }
+            end)(),
             picture = {
                 func = "set_image_data",
                 field_name = conf.image_field:get_value(),
