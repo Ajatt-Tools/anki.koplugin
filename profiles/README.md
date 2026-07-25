@@ -71,9 +71,9 @@ local Config = {
     --     voicevox = {
     --         url = "http://192.168.0.1.lan:50121",
     --         speaker_id = "10000",
-    --         -- Optional: synthesize from a kana reading field + pitch accent position
-    --         -- instead of the default text (looked-up word).
-    --         text_field = "KanaReading",
+    --         -- Optional: when BOTH are available, synthesize with pitch accent.
+    --         -- If either is missing, the original word is used.
+    --         kana_field = "KanaReading",
     --         pitch_field = "VocabPitchNum",
     --         -- Optional AudioQuery params (defaults shown)
     --         -- speedScale = "1.0",
@@ -87,13 +87,6 @@ local Config = {
     word_audio_driver_settings = {},
 
     -- Per-driver settings for sentence audio (same shape as word_audio_driver_settings).
-    -- Default synthesis text is the context sentence when text_field is left blank.
-    -- sentence_audio_driver_settings = {
-    --     voicevox = {
-    --         url = "http://192.168.0.1.lan:50121",
-    --         speaker_id = "10000",
-    --     },
-    -- },
     sentence_audio_driver_settings = {},
 
     -- list of extensions which should be enabled, by default they are all off

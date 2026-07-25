@@ -38,16 +38,16 @@ local VoiceVox = {
             description = "VOICEVOX style/speaker id used for synthesis (e.g. 10000).",
         },
         {
-            id = "text_field",
-            name = "Text Field",
+            id = "kana_field",
+            name = "Kana Field",
             conf_type = "text",
-            description = "Anki field to use as the synthesis text (e.g. KanaReading). Leave blank to use the default text (looked-up word for word audio, context sentence for sentence audio).",
+            description = "Anki field with the kana reading (e.g. KanaReading). Used together with Pitch Accent Field for pitch-aware synthesis. If either field is missing or empty, the original word or sentence text is used instead.",
         },
         {
             id = "pitch_field",
             name = "Pitch Accent Field",
             conf_type = "text",
-            description = "Anki field containing the pitch accent number (e.g. VocabPitchNum with a value like [1]). Leave blank to use the looked-up word.",
+            description = "Anki field with the pitch accent number (e.g. VocabPitchNum with a value like [1]). Used together with Kana Field for pitch-aware synthesis. If either field is missing or empty, the original word or sentence text is used instead.",
         },
         {
             id = "speedScale",
@@ -262,18 +262,17 @@ end
 local function resolve_synthesis_text(ctx)
     local settings = ctx.settings or {}
     local fields = ctx.fields or {}
-    -- Prefer text_field; fall back to legacy word_field from older profiles.
-    local text_field = settings.text_field or settings.word_field
+    -- Prefer kana_field; accept legacy text_field / word_field from older profiles.
+    local kana_field = settings.kana_field or settings.text_field or settings.word_field
     local pitch_field = settings.pitch_field
 
-    -- The katakana + pitch path requires BOTH a kana reading and a pitch number.
-    -- If either is missing we fall back to the default text (ctx.word) so VOICEVOX
-    -- can infer the reading and pitch on its own.
+    -- Pitch-aware path requires BOTH a pure-kana reading and a pitch number.
+    -- If either is missing, fall back to the original word or sentence text.
     local reading = nil
-    if text_field and text_field ~= "" and fields[text_field] and fields[text_field] ~= "" then
-        reading = sanitize_reading(fields[text_field])
+    if kana_field and kana_field ~= "" and fields[kana_field] and fields[kana_field] ~= "" then
+        reading = sanitize_reading(fields[kana_field])
         if reading and not is_pure_katakana(reading) then
-            logger.warn(("VOICEVOX: reading '%s' is not kana; falling back to default text"):format(reading))
+            logger.warn(("VOICEVOX: kana_field value '%s' is not kana; falling back to original text"):format(reading))
             reading = nil
         end
     end
@@ -287,7 +286,6 @@ local function resolve_synthesis_text(ctx)
         return apply_pitch_accent(reading, pitch_num), true
     end
 
-    -- Fall back to the default text passed by the caller (word or sentence).
     return strip_html(ctx.word), false
 end
 

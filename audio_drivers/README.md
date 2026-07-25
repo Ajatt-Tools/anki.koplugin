@@ -72,4 +72,4 @@ Supported `conf_type` values in the `settings` schema: `text`, `bool`.
 ## Built-in drivers
 
 - [`forvo.lua`](forvo.lua) — scrapes forvo.com and returns an OGG URL
-- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `text_field` / `pitch_field` for reading + pitch accent, plus AudioQuery params like `speedScale` / `pitchScale`); returns base64 data. When `text_field` is blank, uses the default text for that audio kind (word or sentence).
+- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `kana_field` / `pitch_field` for pitch-aware synthesis, plus AudioQuery params like `speedScale` / `pitchScale`); returns base64 data. Pitch-aware synthesis is used only when both `kana_field` and `pitch_field` values are available; otherwise the original word or sentence text is used.
