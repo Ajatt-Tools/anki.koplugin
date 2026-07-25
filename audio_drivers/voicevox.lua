@@ -49,6 +49,48 @@ local VoiceVox = {
             conf_type = "text",
             description = "Anki field containing the pitch accent number (e.g. VocabPitchNum with a value like [1]). Leave blank to use the looked-up word.",
         },
+        {
+            id = "speedScale",
+            name = "Speed (速度)",
+            conf_type = "text",
+            default = "1.0",
+            description = "Speaking speed.",
+        },
+        {
+            id = "pitchScale",
+            name = "Pitch (音高)",
+            conf_type = "text",
+            default = "0.0",
+            description = "Overall pitch.",
+        },
+        {
+            id = "intonationScale",
+            name = "Intonation (抑揚)",
+            conf_type = "text",
+            default = "1.0",
+            description = "Intonation strength.",
+        },
+        {
+            id = "volumeScale",
+            name = "Volume (音量)",
+            conf_type = "text",
+            default = "1.0",
+            description = "Volume.",
+        },
+        {
+            id = "prePhonemeLength",
+            name = "Pre-silence (開始無音)",
+            conf_type = "text",
+            default = "0.1",
+            description = "Silence before speech (seconds).",
+        },
+        {
+            id = "postPhonemeLength",
+            name = "Post-silence (終了無音)",
+            conf_type = "text",
+            default = "0.1",
+            description = "Silence after speech (seconds).",
+        },
     },
 }
 
@@ -248,6 +290,53 @@ local function resolve_synthesis_text(ctx)
     return ctx.word, false
 end
 
+-- Defaults for user-configurable AudioQuery fields.
+local AUDIO_QUERY_DEFAULTS = {
+    speedScale = 1.0,
+    pitchScale = 0.0,
+    intonationScale = 1.0,
+    volumeScale = 1.0,
+    prePhonemeLength = 0.1,
+    postPhonemeLength = 0.1,
+}
+
+local function resolve_number_setting(settings, id, default)
+    local raw = settings[id]
+    if raw == nil or raw == "" then
+        return default
+    end
+    local num = tonumber(raw)
+    if not num then
+        logger.warn(("VOICEVOX: invalid %s '%s'; using default %s"):format(id, tostring(raw), tostring(default)))
+        return default
+    end
+    return num
+end
+
+local function resolve_audio_query_params(settings)
+    settings = settings or {}
+    return {
+        speedScale = resolve_number_setting(settings, "speedScale", AUDIO_QUERY_DEFAULTS.speedScale),
+        pitchScale = resolve_number_setting(settings, "pitchScale", AUDIO_QUERY_DEFAULTS.pitchScale),
+        intonationScale = resolve_number_setting(settings, "intonationScale", AUDIO_QUERY_DEFAULTS.intonationScale),
+        volumeScale = resolve_number_setting(settings, "volumeScale", AUDIO_QUERY_DEFAULTS.volumeScale),
+        prePhonemeLength = resolve_number_setting(settings, "prePhonemeLength", AUDIO_QUERY_DEFAULTS.prePhonemeLength),
+        postPhonemeLength = resolve_number_setting(settings, "postPhonemeLength", AUDIO_QUERY_DEFAULTS.postPhonemeLength),
+    }
+end
+
+-- Overlay user synthesis params onto an AudioQuery JSON body.
+local function apply_audio_query_params(query_json, params)
+    local query, decode_err = json.decode(query_json)
+    if not query then
+        return false, ("VOICEVOX audio_query returned invalid JSON: %s"):format(tostring(decode_err))
+    end
+    for key, value in pairs(params) do
+        query[key] = value
+    end
+    return true, json.encode(query)
+end
+
 local function build_audio_query_from_kana(base_url, speaker, kana_text)
     local accent_url = ("%s/accent_phrases?speaker=%s&is_kana=true&text=%s"):format(
         base_url, speaker, url_encode(kana_text)
@@ -263,15 +352,17 @@ local function build_audio_query_from_kana(base_url, speaker, kana_text)
         return false, ("VOICEVOX accent_phrases returned invalid JSON: %s"):format(tostring(decode_err))
     end
 
-    -- Standard AudioQuery defaults; accent_phrases already include length/pitch from the engine.
+    -- /accent_phrases returns phrases only; we wrap them in an AudioQuery.
+    -- outputSamplingRate / outputStereo are required by the /synthesis schema (no omit-default),
+    -- so use the same values /audio_query would fill in. Configurable params are overlaid later.
     local query = {
         accent_phrases = phrases,
-        speedScale = 1,
-        pitchScale = 0,
-        intonationScale = 1,
-        volumeScale = 1,
-        prePhonemeLength = 0.1,
-        postPhonemeLength = 0.1,
+        speedScale = AUDIO_QUERY_DEFAULTS.speedScale,
+        pitchScale = AUDIO_QUERY_DEFAULTS.pitchScale,
+        intonationScale = AUDIO_QUERY_DEFAULTS.intonationScale,
+        volumeScale = AUDIO_QUERY_DEFAULTS.volumeScale,
+        prePhonemeLength = AUDIO_QUERY_DEFAULTS.prePhonemeLength,
+        postPhonemeLength = AUDIO_QUERY_DEFAULTS.postPhonemeLength,
         outputSamplingRate = 24000,
         outputStereo = false,
         kana = kana_text,
@@ -317,6 +408,12 @@ function VoiceVox:get_audio(ctx)
             return false, query_or_err
         end
         return false, ("VOICEVOX audio_query failed: %s"):format(query_or_err)
+    end
+
+    local params = resolve_audio_query_params(settings)
+    ok, query_or_err = apply_audio_query_params(query_or_err, params)
+    if not ok then
+        return false, query_or_err
     end
 
     local synthesis_url = ("%s/synthesis?speaker=%s"):format(base_url, speaker)

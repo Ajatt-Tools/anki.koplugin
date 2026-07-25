@@ -70,6 +70,13 @@ local Config = {
     --         -- Optional: synthesize from a kana reading field + pitch accent position instead of the kanji
     --         word_field = "KanaReading",
     --         pitch_field = "VocabPitchNum",
+    --         -- Optional AudioQuery params (defaults shown)
+    --         -- speedScale = "1.0",
+    --         -- pitchScale = "0.0",
+    --         -- intonationScale = "1.0",
+    --         -- volumeScale = "1.0",
+    --         -- prePhonemeLength = "0.1",
+    --         -- postPhonemeLength = "0.1",
     --     },
     -- },
     audio_driver_settings = {},

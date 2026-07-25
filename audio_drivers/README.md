@@ -70,4 +70,4 @@ Supported `conf_type` values in the `settings` schema: `text`, `bool`.
 ## Built-in drivers
 
 - [`forvo.lua`](forvo.lua) — scrapes forvo.com and returns an OGG URL
-- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `word_field` / `pitch_field` for reading + pitch accent); returns base64 data
+- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `word_field` / `pitch_field` for reading + pitch accent, plus AudioQuery params like `speedScale` / `pitchScale`); returns base64 data
