@@ -1,6 +1,6 @@
 # Profiles
 
-The plugin is configured via profiles. Each profile is a `.lua` file with a single table containing all user configurable settings. 
+The plugin is configured via profiles. Each profile is a `.lua` file with a single table containing all user configurable settings.
 
 To use the plugin, copy the code snippet below and save it in a new file, this file can be named whatever you want, as long as it has a `.lua` suffix.
 
@@ -54,9 +54,42 @@ local Config = {
     -- This metadata is parsed from the EPUB's metadata, or from the filename
     meta_field = "Notes",
 
-    -- The plugin can query Forvo for audio of the word you just looked up.
-    -- The field name where the audio will be sent to.
-    audio_field = "VocabAudio",
+    -- The field name where word pronunciation audio will be sent to.
+    -- Legacy profiles may still use audio_field; that is used if word_audio_field is unset.
+    word_audio_field = "VocabAudio",
+    -- audio_field = "VocabAudio",
+
+    -- The field name where sentence pronunciation audio will be sent to.
+    sentence_audio_field = "SentAudio",
+
+    -- Word / sentence audio drivers (configured under General Settings → Audio in the menu).
+    -- Built-in: "forvo", "voicevox". Use "none" to skip.
+    -- See audio_drivers/README.md for adding custom drivers.
+    word_audio_driver = "forvo",
+    sentence_audio_driver = "none",
+
+    -- Per-driver settings for word audio, keyed by driver id. Example:
+    -- word_audio_driver_settings = {
+    --     voicevox = {
+    --         url = "http://192.168.0.1.lan:50121",
+    --         speaker_id = "10000",
+    --         -- Optional: when BOTH are available, synthesize with pitch accent.
+    --         -- If either is missing, the original word is used.
+    --         kana_field = "KanaReading",
+    --         pitch_field = "VocabPitchNum",
+    --         -- Optional AudioQuery params (defaults shown)
+    --         -- speedScale = "1.0",
+    --         -- pitchScale = "0.0",
+    --         -- intonationScale = "1.0",
+    --         -- volumeScale = "1.0",
+    --         -- prePhonemeLength = "0.1",
+    --         -- postPhonemeLength = "0.1",
+    --     },
+    -- },
+    word_audio_driver_settings = {},
+
+    -- Per-driver settings for sentence audio (same shape as word_audio_driver_settings).
+    sentence_audio_driver_settings = {},
 
     -- list of extensions which should be enabled, by default they are all off
     -- an extension is turned on by listing its filename in the table below

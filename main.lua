@@ -18,6 +18,7 @@ local _ = require("gettext")
 local lfs = require("libs/libkoreader-lfs")
 local AnkiConnect = require("ankiconnect")
 local AnkiNote = require("ankinote")
+local AudioDrivers = require("audio_drivers")
 local Configuration = require("anki_configuration")
 
 local AnkiWidget = WidgetContainer:extend {
@@ -54,11 +55,71 @@ function AnkiWidget:show_profiles_widget(opts)
     UIManager:show(self.profile_change_widget)
 end
 
+function AnkiWidget:set_add_to_anki_button_text(text, opts)
+    opts = opts or {}
+    local popup_dict = self.popup_dict
+    if not popup_dict or not popup_dict.button_table then
+        return
+    end
+    local btn = popup_dict.button_table:getButtonById("add_to_anki")
+    if not btn then
+        return
+    end
+    btn:setText(text, btn.width)
+    if opts.enable == true then
+        btn:enable()
+    elseif opts.enable == false then
+        btn:disable()
+    end
+    btn:refresh()
+    if opts.repaint then
+        UIManager:forceRePaint()
+    end
+end
+
+function AnkiWidget:add_current_note()
+    self:set_add_to_anki_button_text(_("Adding..."), { enable = false, repaint = true })
+    local result = AnkiConnect:add_note(self.current_note)
+    if result == true then
+        self:set_add_to_anki_button_text(_("Added to Anki"), { enable = true, repaint = true })
+    else
+        -- Failure (and offline store): restore default label; errors already show a popup.
+        self:set_add_to_anki_button_text(_("Add to Anki"), { enable = true, repaint = true })
+    end
+    return result
+end
+
+function AnkiWidget:make_add_to_anki_button(popup_dict)
+    return {
+        id = "add_to_anki",
+        text = _("Add to Anki"),
+        font_bold = true,
+        callback = function()
+            self:set_profile(function()
+                self:check_conn(function()
+                    self.popup_dict = popup_dict
+                    self.current_note = AnkiNote:new(popup_dict)
+                    self:add_current_note()
+                end)
+            end)
+        end,
+        hold_callback = function()
+            self:set_profile(function()
+                self:check_conn(function()
+                    self.popup_dict = popup_dict
+                    self.current_note = AnkiNote:new(popup_dict)
+                    self:show_config_widget()
+                end)
+            end)
+        end,
+    }
+end
+
 function AnkiWidget:show_config_widget()
     local with_custom_tags_cb = function()
         self.current_note:add_tags(Configuration.custom_tags:get_value())
-        AnkiConnect:add_note(self.current_note)
         self.config_widget:onClose()
+        self:add_current_note()
     end
     self.config_widget = ButtonDialog:new {
         buttons = {
@@ -98,9 +159,9 @@ function AnkiWidget:show_custom_context_widget()
     local function on_save_cb()
         local m = self.context_menu
         self.current_note:set_custom_context(m.prev_s_cnt, m.prev_c_cnt, m.next_s_cnt, m.next_c_cnt)
-        AnkiConnect:add_note(self.current_note)
         self.context_menu:onClose()
         self.config_widget:onClose()
+        self:add_current_note()
     end
     self.context_menu = CustomContextMenu:new{
         note = self.current_note, -- to extract context out of
@@ -208,6 +269,7 @@ end
 function AnkiWidget:buildSettings()
     local builder = MenuBuilder:new{
         extensions = self.extensions,
+        audio_drivers = AudioDrivers,
         ui = self.ui
     }
     local function make_new_profile(start_data)
@@ -304,6 +366,7 @@ end
 -- This function is called automatically for all tables extending from Widget
 function AnkiWidget:init()
     self:load_extensions()
+    AudioDrivers:load()
     -- allow propagating events to ankiconnect, we handle wifi related stuff in there
     table.insert(self, AnkiConnect)
     AnkiConnect:load_notes()
@@ -400,25 +463,7 @@ function AnkiWidget:handle_events()
         -- Insert new button in the popup dictionary to allow adding anki cards
         -- TODO disable button if lookup was not contextual
         DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
-            self.add_to_anki_btn = {
-                id = "add_to_anki",
-                text = _("Add to Anki"),
-                font_bold = true,
-                callback = function()
-                    self:set_profile(function()
-                        self:check_conn(function()
-                            self.current_note = AnkiNote:new(popup_dict)
-                            AnkiConnect:add_note(self.current_note)
-                        end)
-                    end)
-                end,
-                hold_callback = function()
-                    self:set_profile(function()
-                        self.current_note = AnkiNote:new(popup_dict)
-                        self:show_config_widget()
-                    end)
-                end,
-            }
+            self.add_to_anki_btn = self:make_add_to_anki_button(popup_dict)
             table.insert(buttons, 1, { self.add_to_anki_btn })
         end
         local filepath = doc_settings.data.doc_path
@@ -440,27 +485,7 @@ function AnkiWidget:onDictButtonsReady(popup_dict, buttons)
     if self.ui.vocabbuilder and UIManager:isWidgetShown(self.ui.vocabbuilder.widget) then
         return
     end
-    self.add_to_anki_btn = {
-        id = "add_to_anki",
-        text = _("Add to Anki"),
-        font_bold = true,
-        callback = function()
-            self:set_profile(function()
-                self:check_conn(function()
-                    self.current_note = AnkiNote:new(popup_dict)
-                    AnkiConnect:add_note(self.current_note)
-                end)
-            end)
-        end,
-        hold_callback = function()
-            self:set_profile(function()
-                self:check_conn(function()
-                    self.current_note = AnkiNote:new(popup_dict)
-                    self:show_config_widget()
-                end)
-            end)
-        end,
-    }
+    self.add_to_anki_btn = self:make_add_to_anki_button(popup_dict)
     table.insert(buttons, 1, { self.add_to_anki_btn })
 end
 
