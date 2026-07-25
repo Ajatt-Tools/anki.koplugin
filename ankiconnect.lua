@@ -46,8 +46,19 @@ function AnkiConnect.sanitize_url(url)
     return valid_url, ssl ~= nil
 end
 
-function AnkiConnect.with_timeout(timeout, func)
-    socketutil:set_timeout(timeout)
+-- Light requests (connectivity / deck names): keep UI snappy when Anki is down.
+local POST_BLOCK_TIMEOUT = 1
+-- Media-heavy requests (addNote with base64 audio/images): match VoiceVox LARGE timeouts.
+local POST_LARGE_BLOCK_TIMEOUT = socketutil.LARGE_BLOCK_TIMEOUT
+local POST_LARGE_TOTAL_TIMEOUT = socketutil.LARGE_TOTAL_TIMEOUT
+
+function AnkiConnect.with_timeout(block_timeout, total_timeout_or_func, func)
+    -- Supports with_timeout(block, func) and with_timeout(block, total, func).
+    if type(total_timeout_or_func) == "function" then
+        func = total_timeout_or_func
+        total_timeout_or_func = nil
+    end
+    socketutil:set_timeout(block_timeout, total_timeout_or_func)
     local res = { func() } -- store all values returned by function
     socketutil:reset_timeout()
     return unpack(res)
@@ -72,7 +83,12 @@ end
 
 function AnkiConnect:request_add_note(note)
     local anki_connect_request = { action = "addNote", params = { note = note }, version = 6, key = conf.api_key:get_value() }
-    return self:POST { payload = anki_connect_request, url = conf.url:get_value() }
+    return self:POST {
+        payload = anki_connect_request,
+        url = conf.url:get_value(),
+        block_timeout = POST_LARGE_BLOCK_TIMEOUT,
+        total_timeout = POST_LARGE_TOTAL_TIMEOUT,
+    }
 end
 
 function AnkiConnect:POST(opts)
@@ -102,7 +118,11 @@ function AnkiConnect:POST(opts)
         source = ltn12.source.string(payload)
     }
     logger.dbg("AnkiConnect#POST request:", req)
-    local status_code, response_headers, status = self.with_timeout(1, function() return socket.skip(1, http.request(req)) end)
+    local block_timeout = opts.block_timeout or POST_BLOCK_TIMEOUT
+    local total_timeout = opts.total_timeout
+    local status_code, response_headers, status = self.with_timeout(block_timeout, total_timeout, function()
+        return socket.skip(1, http.request(req))
+    end)
     logger.dbg("AnkiConnect#POST response:", status_code, response_headers, status)
 
     if type(status_code) == "string" then return nil, status_code end
@@ -149,32 +169,36 @@ function AnkiConnect:normalize_audio_payload(field, result)
     return true, audio
 end
 
-function AnkiConnect:set_note_audio(field, word, language, driver_id, fields)
+function AnkiConnect:set_note_audio(field, word, language, driver_id, fields, kind)
     if not driver_id or driver_id == "none" then
+        return true, nil
+    end
+    if not word or word == "" then
         return true, nil
     end
     local driver = AudioDrivers:get(driver_id)
     if not driver then
         return false, ("Unknown audio driver: %s"):format(driver_id)
     end
-    logger.info(("Querying audio via driver '%s' for '%s' in language: %s"):format(driver_id, word, language))
+    kind = kind or "word"
+    logger.info(("Querying %s audio via driver '%s' for '%s' in language: %s"):format(kind, driver_id, word, language))
     local ok, result = driver:get_audio({
         word = word,
         language = language,
         field = field,
         fields = fields or {},
-        settings = conf:get_audio_driver_settings(driver_id),
+        settings = conf:get_audio_driver_settings(driver_id, kind),
     })
     if not ok then
         return false, result
     end
     if not result then
-        logger.warn(("Audio driver '%s' returned no audio for '%s' - note will be created without audio"):format(driver_id, word))
+        logger.warn(("Audio driver '%s' returned no audio for '%s' - note will be created without %s audio"):format(driver_id, word, kind))
         return true, nil
     end
     local norm_ok, audio_or_err = self:normalize_audio_payload(field, result)
     if norm_ok then
-        logger.info(("Audio attached via '%s' (%s)"):format(driver_id, audio_or_err.url and "url" or "data"))
+        logger.info(("%s audio attached via '%s' (%s)"):format(kind, driver_id, audio_or_err.url and "url" or "data"))
     end
     return norm_ok, audio_or_err
 end
@@ -208,6 +232,18 @@ function AnkiConnect:handle_callbacks(note, on_err_func)
             end
             if param == "fields" then
                 note.data.fields[mod.field_name] = result_or_err
+            elseif param == "word_audio" or param == "sentence_audio" or param == "audio" then
+                -- AnkiConnect accepts a single audio object or an array of them.
+                if result_or_err then
+                    if note.data.audio == nil then
+                        note.data.audio = result_or_err
+                    else
+                        if note.data.audio.url or note.data.audio.data then
+                            note.data.audio = { note.data.audio }
+                        end
+                        table.insert(note.data.audio, result_or_err)
+                    end
+                end
             else
                 assert(note.data[param] == nil, ("unexpected result: note property '%s' was already present!"):format(param))
                 note.data[param] = result_or_err
@@ -329,15 +365,21 @@ function AnkiConnect:delete_latest_note()
     self.latest_synced_note = nil
 end
 
+--- Add a note to Anki (or store offline if unreachable).
+-- @return true on online success, "offline" when stored locally, false on failure
 function AnkiConnect:add_note(anki_note)
     local ok, note = pcall(anki_note.build, anki_note)
     if not ok then
-        return self:show_popup(string.format("Error while creating note:\n\n%s", note), 10, true)
+        self:show_popup(string.format("Error while creating note:\n\n%s", note), 10, true)
+        return false
     end
 
     local can_sync, err = self:is_running(conf.url:get_value())
     if not can_sync then
-        return self:store_offline(note, err)
+        if self:store_offline(note, err) then
+            return "offline"
+        end
+        return false
     end
 
     if #self.local_notes > 0 then
@@ -353,27 +395,31 @@ function AnkiConnect:add_note(anki_note)
     local callback_ok = self:handle_callbacks(note, function(callback_err)
         return self:show_popup(string.format("Error while handling callbacks:\n\n%s", callback_err), 3, true)
     end)
-    if not callback_ok then return end
+    if not callback_ok then return false end
 
     local result, request_err = self:request_add_note(note.data)
     if request_err then
-        return self:show_popup(string.format("Error while synchronizing note:\n\n%s", request_err), 3, true)
+        self:show_popup(string.format("Error while synchronizing note:\n\n%s", request_err), 3, true)
+        return false
     end
     self.latest_synced_note = { state = "online", id = result }
     self.last_message_text = "" -- if we manage to sync once, a following error should be shown again
     logger.info("note added succesfully: " .. result)
+    return true
 end
 
 function AnkiConnect:store_offline(note, reason, show_always)
     local id = note.data.fields[note.identifier]
     if self.local_notes[id] and not note.data.options.allowDuplicate then
-        return self:show_popup("Cannot store duplicate note offline!", 6, true)
+        self:show_popup("Cannot store duplicate note offline!", 6, true)
+        return false
     end
     self.local_notes[id] = true
     table.insert(self.local_notes, note)
     u.open_file(self.notes_filename, 'a', function(f) f:write(json.encode(note) .. '\n') end)
     self.latest_synced_note = { state = "offline", id = id }
-    return self:show_popup(string.format("%s\nStored note offline", reason), 3, show_always or false)
+    self:show_popup(string.format("%s\nStored note offline", reason), 3, show_always or false)
+    return true
 end
 
 function AnkiConnect:load_notes()

@@ -2,7 +2,7 @@
 
 Pluggable pronunciation audio sources for note creation.
 
-Any `.lua` file in this folder is loaded at plugin startup (except documentation). Each file must return a driver module.
+Word and sentence audio are configured independently (General Settings → Audio → Word Audio / Sentence Audio). Any `.lua` file in this folder is loaded at plugin startup (except documentation). Each file must return a driver module.
 
 ## Format
 
@@ -11,7 +11,7 @@ local MyDriver = {
     id = "my_driver",           -- unique id stored in the profile
     name = "My Driver",         -- shown in the Audio Driver menu
     description = "Optional longer description (shown on hold).",
-    -- optional: settings shown under Audio Driver Settings when this driver is selected
+    -- optional: settings shown under Driver Settings when this driver is selected
     settings = {
         {
             id = "api_key",
@@ -23,7 +23,9 @@ local MyDriver = {
 }
 
 -- ctx: { word, language, field, fields, settings }
---   fields = note field map after extensions have run (may be used as synthesis input)
+--   word     = default synthesis/lookup text (looked-up word, or context sentence for sentence audio)
+--   fields   = note field map after extensions have run (may be used as synthesis input)
+--   settings = per-driver settings for this audio kind (word or sentence)
 -- returns: ok, audio_or_nil_or_err
 function MyDriver:get_audio(ctx)
     local api_key = ctx.settings.api_key
@@ -56,18 +58,18 @@ return MyDriver
 |--------|---------|
 | `true, { url = "...", filename = "..." }` | Attach audio via remote URL |
 | `true, { data = "<base64>", filename = "..." }` | Attach audio via base64-encoded file bytes |
-| `true, nil` | Soft skip — create the note without audio |
+| `true, nil` | Soft skip — create the note without this audio |
 | `false, "message"` | Hard failure — surface the error to the user |
 
 Provide either `url` or `data` (not both). Do **not** set `fields`; the plugin attaches the configured audio field.
 
 ## Settings
 
-Driver settings are stored per profile under `audio_driver_settings[driver_id]`. Values are passed to `get_audio` as `ctx.settings`.
+Driver settings are stored per profile under `word_audio_driver_settings[driver_id]` and `sentence_audio_driver_settings[driver_id]`. Values are passed to `get_audio` as `ctx.settings`.
 
 Supported `conf_type` values in the `settings` schema: `text`, `bool`.
 
 ## Built-in drivers
 
 - [`forvo.lua`](forvo.lua) — scrapes forvo.com and returns an OGG URL
-- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `word_field` / `pitch_field` for reading + pitch accent, plus AudioQuery params like `speedScale` / `pitchScale`); returns base64 data
+- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `text_field` / `pitch_field` for reading + pitch accent, plus AudioQuery params like `speedScale` / `pitchScale`); returns base64 data. When `text_field` is blank, uses the default text for that audio kind (word or sentence).

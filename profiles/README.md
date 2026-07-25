@@ -1,6 +1,6 @@
 # Profiles
 
-The plugin is configured via profiles. Each profile is a `.lua` file with a single table containing all user configurable settings. 
+The plugin is configured via profiles. Each profile is a `.lua` file with a single table containing all user configurable settings.
 
 To use the plugin, copy the code snippet below and save it in a new file, this file can be named whatever you want, as long as it has a `.lua` suffix.
 
@@ -54,21 +54,26 @@ local Config = {
     -- This metadata is parsed from the EPUB's metadata, or from the filename
     meta_field = "Notes",
 
-    -- The field name where pronunciation audio will be sent to (leave blank to disable audio lookup).
+    -- The field name where word pronunciation audio will be sent to.
     audio_field = "VocabAudio",
 
-    -- Which audio driver to use when audio_field is set.
-    -- Built-in: "forvo", "voicevox". Use "none" to skip audio even if audio_field is set.
-    -- See audio_drivers/README.md for adding custom drivers.
-    audio_driver = "forvo",
+    -- The field name where sentence pronunciation audio will be sent to.
+    sentence_audio_field = "SentAudio",
 
-    -- Per-driver settings, keyed by driver id. Example:
-    -- audio_driver_settings = {
+    -- Word / sentence audio drivers (configured under General Settings → Audio in the menu).
+    -- Built-in: "forvo", "voicevox". Use "none" to skip.
+    -- See audio_drivers/README.md for adding custom drivers.
+    word_audio_driver = "forvo",
+    sentence_audio_driver = "none",
+
+    -- Per-driver settings for word audio, keyed by driver id. Example:
+    -- word_audio_driver_settings = {
     --     voicevox = {
     --         url = "http://192.168.0.1.lan:50121",
     --         speaker_id = "10000",
-    --         -- Optional: synthesize from a kana reading field + pitch accent position instead of the kanji
-    --         word_field = "KanaReading",
+    --         -- Optional: synthesize from a kana reading field + pitch accent position
+    --         -- instead of the default text (looked-up word).
+    --         text_field = "KanaReading",
     --         pitch_field = "VocabPitchNum",
     --         -- Optional AudioQuery params (defaults shown)
     --         -- speedScale = "1.0",
@@ -79,7 +84,17 @@ local Config = {
     --         -- postPhonemeLength = "0.1",
     --     },
     -- },
-    audio_driver_settings = {},
+    word_audio_driver_settings = {},
+
+    -- Per-driver settings for sentence audio (same shape as word_audio_driver_settings).
+    -- Default synthesis text is the context sentence when text_field is left blank.
+    -- sentence_audio_driver_settings = {
+    --     voicevox = {
+    --         url = "http://192.168.0.1.lan:50121",
+    --         speaker_id = "10000",
+    --     },
+    -- },
+    sentence_audio_driver_settings = {},
 
     -- list of extensions which should be enabled, by default they are all off
     -- an extension is turned on by listing its filename in the table below

@@ -80,25 +80,54 @@ local menu_entries = {
      {
         id = "audio_field",
         group = note_settings,
-        name = "Audio Field",
-        description = "Anki field to store pronunciation audio in.",
+        name = "Word Audio Field",
+        description = "Anki field to store word pronunciation audio in.",
     },
      {
-        id = "audio_driver",
+        id = "sentence_audio_field",
         group = note_settings,
+        name = "Sentence Audio Field",
+        description = "Anki field to store sentence pronunciation audio in.",
+    },
+     {
+        id = "word_audio_driver",
+        group = general_settings,
+        submenu = { "Audio", "Word Audio" },
         name = "Audio Driver",
-        description = "Source used to fetch pronunciation audio. Select None to skip audio.",
+        description = "Source used to fetch word pronunciation audio. Select None to skip.",
         conf_type = "choice",
         choices = function(self)
             return self.audio_drivers:choices()
         end,
     },
      {
-        id = "audio_driver_settings",
-        group = note_settings,
-        name = "Audio Driver Settings",
-        description = "Settings specific to the selected audio driver.",
+        id = "word_audio_driver_settings",
+        group = general_settings,
+        submenu = { "Audio", "Word Audio" },
+        name = "Driver Settings",
+        description = "Settings specific to the selected word audio driver.",
         conf_type = "audio_driver_settings",
+        driver_setting_id = "word_audio_driver",
+    },
+     {
+        id = "sentence_audio_driver",
+        group = general_settings,
+        submenu = { "Audio", "Sentence Audio" },
+        name = "Audio Driver",
+        description = "Source used to fetch sentence pronunciation audio. Select None to skip.",
+        conf_type = "choice",
+        choices = function(self)
+            return self.audio_drivers:choices()
+        end,
+    },
+     {
+        id = "sentence_audio_driver_settings",
+        group = general_settings,
+        submenu = { "Audio", "Sentence Audio" },
+        name = "Driver Settings",
+        description = "Settings specific to the selected sentence audio driver.",
+        conf_type = "audio_driver_settings",
+        driver_setting_id = "sentence_audio_driver",
     },
      {
         id = "img_field",
@@ -256,10 +285,16 @@ function MenuConfigOpt:build_choice()
     if type(choices) == "function" then
         choices = choices(self)
     end
+    local function current_value()
+        if self.value_func then
+            return self.value_func(self)
+        end
+        return self:get_value()
+    end
     for _, choice in ipairs(choices or {}) do
         local item = {
             text = choice.name or choice.id,
-            checked_func = function() return self:get_value() == choice.id end,
+            checked_func = function() return current_value() == choice.id end,
             callback = function()
                 self:update_value(choice.id)
             end,
@@ -275,7 +310,8 @@ function MenuConfigOpt:build_choice()
 end
 
 function MenuConfigOpt:build_audio_driver_settings()
-    local driver_id_setting = config.audio_driver:copy {
+    local driver_setting_id = self.driver_setting_id or "word_audio_driver"
+    local driver_id_setting = config[driver_setting_id]:copy {
         active_luasettings = self.active_luasettings,
         default_luasettings = self.default_luasettings,
     }
@@ -288,6 +324,10 @@ function MenuConfigOpt:build_audio_driver_settings()
         return { { text = "This driver has no settings", enabled = false } }
     end
 
+    local function current_all_settings()
+        return util.tableDeepCopy(self:get_value_nodefault() or {})
+    end
+
     local menu_items = {}
     for _, setting_def in ipairs(driver.settings) do
         local conf_type = setting_def.conf_type or "text"
@@ -296,14 +336,14 @@ function MenuConfigOpt:build_audio_driver_settings()
                 text = setting_def.name or setting_def.id,
                 keep_menu_open = true,
                 checked_func = function()
-                    local all = self:get_value_nodefault() or {}
+                    local all = current_all_settings()
                     local driver_settings = all[driver_id] or {}
                     local val = driver_settings[setting_def.id]
                     if val == nil then return setting_def.default == true end
                     return val == true
                 end,
                 callback = function()
-                    local all = util.tableDeepCopy(self:get_value_nodefault() or {})
+                    local all = current_all_settings()
                     all[driver_id] = all[driver_id] or {}
                     local current = all[driver_id][setting_def.id]
                     if current == nil then current = setting_def.default end
@@ -319,7 +359,7 @@ function MenuConfigOpt:build_audio_driver_settings()
                 text = setting_def.name or setting_def.id,
                 keep_menu_open = true,
                 callback = function()
-                    local all = util.tableDeepCopy(self:get_value_nodefault() or {})
+                    local all = current_all_settings()
                     all[driver_id] = all[driver_id] or {}
                     local current = all[driver_id][setting_def.id]
                     if current == nil then current = setting_def.default or "" end
@@ -350,6 +390,31 @@ function MenuConfigOpt:build_audio_driver_settings()
         end
     end
     return menu_items
+end
+
+--- Insert a menu entry under an optional nested submenu path within items.
+local function insert_with_submenu(items, submenu_path, entry)
+    if not submenu_path or #submenu_path == 0 then
+        table.insert(items, entry)
+        return
+    end
+    local name = submenu_path[1]
+    local child = nil
+    for _, existing in ipairs(items) do
+        if existing.text == name and existing.sub_item_table then
+            child = existing
+            break
+        end
+    end
+    if not child then
+        child = { text = name, keep_menu_open = true, sub_item_table = {} }
+        table.insert(items, child)
+    end
+    local rest = {}
+    for i = 2, #submenu_path do
+        table.insert(rest, submenu_path[i])
+    end
+    insert_with_submenu(child.sub_item_table, rest, entry)
 end
 
 function MenuConfigOpt:build_map_dialog()
@@ -442,7 +507,7 @@ function MenuBuilder:build()
         for group, group_entries in pairs(List:new(menu_options):group_by(grouping_func):get()) do
             local menu_group = {}
             for _,opt in ipairs(group_entries) do
-                table.insert(menu_group, self:convert_opt(opt))
+                insert_with_submenu(menu_group, opt.submenu, self:convert_opt(opt))
             end
             table.insert(sub_item_table, { text = group, sub_item_table = menu_group })
         end

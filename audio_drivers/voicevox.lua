@@ -38,10 +38,10 @@ local VoiceVox = {
             description = "VOICEVOX style/speaker id used for synthesis (e.g. 10000).",
         },
         {
-            id = "word_field",
-            name = "Word Field",
+            id = "text_field",
+            name = "Text Field",
             conf_type = "text",
-            description = "Anki field to use as the synthesis text (e.g. KanaReading). Leave blank to use the looked-up word.",
+            description = "Anki field to use as the synthesis text (e.g. KanaReading). Leave blank to use the default text (looked-up word for word audio, context sentence for sentence audio).",
         },
         {
             id = "pitch_field",
@@ -262,17 +262,18 @@ end
 local function resolve_synthesis_text(ctx)
     local settings = ctx.settings or {}
     local fields = ctx.fields or {}
-    local word_field = settings.word_field
+    -- Prefer text_field; fall back to legacy word_field from older profiles.
+    local text_field = settings.text_field or settings.word_field
     local pitch_field = settings.pitch_field
 
     -- The katakana + pitch path requires BOTH a kana reading and a pitch number.
-    -- If either is missing we fall back to the original dictionary word so VOICEVOX
+    -- If either is missing we fall back to the default text (ctx.word) so VOICEVOX
     -- can infer the reading and pitch on its own.
     local reading = nil
-    if word_field and word_field ~= "" and fields[word_field] and fields[word_field] ~= "" then
-        reading = sanitize_reading(fields[word_field])
+    if text_field and text_field ~= "" and fields[text_field] and fields[text_field] ~= "" then
+        reading = sanitize_reading(fields[text_field])
         if reading and not is_pure_katakana(reading) then
-            logger.warn(("VOICEVOX: reading '%s' is not kana; falling back to dictionary word"):format(reading))
+            logger.warn(("VOICEVOX: reading '%s' is not kana; falling back to default text"):format(reading))
             reading = nil
         end
     end
@@ -286,8 +287,8 @@ local function resolve_synthesis_text(ctx)
         return apply_pitch_accent(reading, pitch_num), true
     end
 
-    -- Fall back to the original dictionary word (e.g. kanji).
-    return ctx.word, false
+    -- Fall back to the default text passed by the caller (word or sentence).
+    return strip_html(ctx.word), false
 end
 
 -- Defaults for user-configurable AudioQuery fields.

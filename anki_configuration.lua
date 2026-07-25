@@ -78,8 +78,11 @@ local Configuration = {
     Setting:new{ id = 'context_field' },
     Setting:new{ id = 'meta_field' },
     Setting:new{ id = 'audio_field' },
-    Setting:new{ id = 'audio_driver', default = 'forvo' },
-    Setting:new{ id = 'audio_driver_settings', default = {} },
+    Setting:new{ id = 'sentence_audio_field' },
+    Setting:new{ id = 'word_audio_driver', default = 'forvo' },
+    Setting:new{ id = 'word_audio_driver_settings', default = {} },
+    Setting:new{ id = 'sentence_audio_driver', default = 'none' },
+    Setting:new{ id = 'sentence_audio_driver_settings', default = {} },
     Setting:new{ id = 'image_field' },
     Setting:new{ id = 'translated_context_field' },
     Setting:new{ id = 'prev_sentence_count', default = '1' },
@@ -89,9 +92,23 @@ for _,s in ipairs(Configuration) do
     Configuration[s.id] = s
 end
 
---- Return the settings table for a given audio driver id (from the active profile).
-function Configuration:get_audio_driver_settings(driver_id)
-    local all = self.audio_driver_settings:get_value() or {}
+--- Word audio driver id.
+function Configuration:get_word_audio_driver()
+    return self.word_audio_driver:get_value()
+end
+
+--- Sentence audio driver id.
+function Configuration:get_sentence_audio_driver()
+    return self.sentence_audio_driver:get_value()
+end
+
+--- Return the settings table for a given audio driver id.
+-- @param driver_id string
+-- @param kind "word"|"sentence" (default "word")
+function Configuration:get_audio_driver_settings(driver_id, kind)
+    kind = kind or "word"
+    local setting = kind == "sentence" and self.sentence_audio_driver_settings or self.word_audio_driver_settings
+    local all = setting:get_value() or {}
     return all[driver_id] or {}
 end
 
