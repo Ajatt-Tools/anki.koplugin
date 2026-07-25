@@ -149,7 +149,7 @@ function AnkiConnect:normalize_audio_payload(field, result)
     return true, audio
 end
 
-function AnkiConnect:set_note_audio(field, word, language, driver_id)
+function AnkiConnect:set_note_audio(field, word, language, driver_id, fields)
     if not driver_id or driver_id == "none" then
         return true, nil
     end
@@ -162,6 +162,7 @@ function AnkiConnect:set_note_audio(field, word, language, driver_id)
         word = word,
         language = language,
         field = field,
+        fields = fields or {},
         settings = conf:get_audio_driver_settings(driver_id),
     })
     if not ok then

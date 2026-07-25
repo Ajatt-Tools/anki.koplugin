@@ -78,7 +78,7 @@ local function get_pronunciation_url(word, language)
     return true, word_url
 end
 
--- ctx: { word, language, field, settings }
+-- ctx: { word, language, field, fields, settings }
 -- returns: ok, audio_or_nil_or_err
 function Forvo:get_audio(ctx)
     local ok, forvo_url = get_pronunciation_url(ctx.word, ctx.language)

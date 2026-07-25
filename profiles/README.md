@@ -67,6 +67,9 @@ local Config = {
     --     voicevox = {
     --         url = "http://192.168.0.1.lan:50121",
     --         speaker_id = "10000",
+    --         -- Optional: synthesize from a kana reading field + pitch accent position instead of the kanji
+    --         word_field = "KanaReading",
+    --         pitch_field = "VocabPitchNum",
     --     },
     -- },
     audio_driver_settings = {},

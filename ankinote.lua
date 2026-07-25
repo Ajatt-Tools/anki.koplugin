@@ -207,9 +207,10 @@ function AnkiNote:build()
         },
         tags = self.tags,
     }
+    note = self:run_extensions(note)
     return {
         -- actual table passed to anki-connect later
-        data = self:run_extensions(note),
+        data = note,
         -- some fields require an internet connection, which we may not have at this point
         -- all info needed to populate them is stored as a callback, which is called when a connection is available
         field_callbacks = {
@@ -223,7 +224,7 @@ function AnkiNote:build()
                 return {
                     func = "set_note_audio",
                     field_name = audio_field,
-                    args = { self.popup_dict.word, language, audio_driver }
+                    args = { self.popup_dict.word, language, audio_driver, note.fields }
                 }
             end)(),
             picture = {

@@ -22,7 +22,8 @@ local MyDriver = {
     },
 }
 
--- ctx: { word, language, field, settings }
+-- ctx: { word, language, field, fields, settings }
+--   fields = note field map after extensions have run (may be used as synthesis input)
 -- returns: ok, audio_or_nil_or_err
 function MyDriver:get_audio(ctx)
     local api_key = ctx.settings.api_key
@@ -69,4 +70,4 @@ Supported `conf_type` values in the `settings` schema: `text`, `bool`.
 ## Built-in drivers
 
 - [`forvo.lua`](forvo.lua) — scrapes forvo.com and returns an OGG URL
-- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url` + `speaker_id` settings); returns base64 data
+- [`voicevox.lua`](voicevox.lua) — synthesizes WAV audio via a VOICEVOX Engine (`url`, `speaker_id`, optional `word_field` / `pitch_field` for reading + pitch accent); returns base64 data
