@@ -2,7 +2,6 @@ local ButtonDialog = require("ui/widget/buttondialog")
 local ConfirmBox = require("ui/widget/confirmbox")
 local CustomContextMenu = require("customcontextmenu")
 local DataStorage = require("datastorage")
-local DictQuickLookup = require("ui/widget/dictquicklookup")
 local InfoMessage = require("ui/widget/infomessage")
 local MultiInputDialog = require("ui/widget/multiinputdialog")
 local LuaSettings = require("luasettings")
@@ -398,30 +397,6 @@ function AnkiWidget:handle_events()
     end
 
     self.onReaderReady = function(obj, doc_settings)
-        -- Insert new button in the popup dictionary to allow adding anki cards
-        -- TODO disable button if lookup was not contextual
-        DictQuickLookup.tweak_buttons_func = function(popup_dict, buttons)
-            self.add_to_anki_btn = {
-                id = "add_to_anki",
-                text = _("Add to Anki"),
-                font_bold = true,
-                callback = function()
-                    self:set_profile(function()
-                        self:check_conn(function()
-                            self.current_note = AnkiNote:new(popup_dict)
-                            AnkiConnect:add_note(self.current_note)
-                        end)
-                    end)
-                end,
-                hold_callback = function()
-                    self:set_profile(function()
-                        self.current_note = AnkiNote:new(popup_dict)
-                        self:show_config_widget()
-                    end)
-                end,
-            }
-            table.insert(buttons, 1, { self.add_to_anki_btn })
-        end
         local filepath = doc_settings.data.doc_path
         self:extend_doc_settings(filepath, self.ui.doc_props)
     end
