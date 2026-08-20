@@ -105,6 +105,18 @@ Configuration is done by defining profiles, See [Profiles](profiles/README.md) f
 
 When editing a profile which is *not* the default one, it's possible to 'unset' a setting (meaning it falls back on whatever is present in the `default.lua` profile). This is done by pressing and holding the setting you would like to reset.
 
+Each setting shows its configured value right in the menu label (e.g. `Word Field: Front`); settings that have no value yet are shown as `(not set)`, so it's easy to see at a glance what still needs configuring.
+
+### Picking deck, note type and fields from Anki
+
+The **Anki Deckname**, **Anki Note Type** and the various note field settings (Word, Context, Glossary, ...) no longer have to be typed out by hand. When you open one of these settings, the plugin queries the running Anki instance through anki-connect and presents the available values in a list to pick from. The currently selected value is marked with a `✓`.
+
+- The list of fields depends on the selected note type, so set the **Anki Note Type** first. The field settings stay greyed out until a note type is set.
+- This requires the anki-connect URL to be configured and Anki to be reachable (WiFi will be brought up if needed). If the list can't be fetched, you'll be informed and can still enter the value manually.
+- Every selection dialog also has an **Enter manually** button, in case you want to set a value that isn't (yet) present in Anki.
+
+**Duplicate Scope** is also picked from a list, but a fixed one (no anki-connect lookup): `deck` checks for duplicates only within the target deck, `collection` checks across the whole collection.
+
 ## FAQ
 
 <details>

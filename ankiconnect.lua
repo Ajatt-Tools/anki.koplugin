@@ -69,6 +69,16 @@ function AnkiConnect:get_decknames(url, api_key)
     return self:POST { payload = anki_connect_request, url = url }
 end
 
+function AnkiConnect:get_modelnames(url, api_key)
+    local anki_connect_request = { action = "modelNames", version = 6, key = api_key }
+    return self:POST { payload = anki_connect_request, url = url }
+end
+
+function AnkiConnect:get_model_field_names(url, api_key, model_name)
+    local anki_connect_request = { action = "modelFieldNames", version = 6, key = api_key, params = { modelName = model_name } }
+    return self:POST { payload = anki_connect_request, url = url }
+end
+
 function AnkiConnect:request_add_note(note)
     local anki_connect_request = { action = "addNote", params = { note = note }, version = 6, key = conf.api_key:get_value() }
     return self:POST { payload = anki_connect_request, url = conf.url:get_value() }
