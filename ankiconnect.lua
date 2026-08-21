@@ -45,8 +45,8 @@ function AnkiConnect.sanitize_url(url)
     return valid_url, ssl ~= nil
 end
 
-function AnkiConnect.with_timeout(timeout, func)
-    socketutil:set_timeout(timeout)
+function AnkiConnect.with_timeout(block_timeout, total_timeout, func)
+    socketutil:set_timeout(block_timeout, total_timeout)
     local res = { func() } -- store all values returned by function
     socketutil:reset_timeout()
     return unpack(res)
@@ -101,7 +101,8 @@ function AnkiConnect:POST(opts)
         source = ltn12.source.string(payload)
     }
     logger.dbg("AnkiConnect#POST request:", req)
-    local status_code, response_headers, status = self.with_timeout(1, function() return socket.skip(1, http.request(req)) end)
+    local status_code, response_headers, status = self.with_timeout(socketutil.LARGE_BLOCK_TIMEOUT, socketutil.LARGE_TOTAL_TIMEOUT,
+        function() return socket.skip(1, http.request(req)) end)
     logger.dbg("AnkiConnect#POST response:", status_code, response_headers, status)
 
     if type(status_code) == "string" then return nil, status_code end
