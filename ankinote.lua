@@ -14,9 +14,11 @@ local AnkiNote = {
 -- We want to know if last dict lookup is contained in first dict lookup.
 -- e.g.: '広大な' -> trimmed to '広大' -> context is '' (before), 'な' (after)
 --]]
+
 function AnkiNote:set_word_trim()
     local list = self.popup_dict.window_list
-    if #list == 1 then
+    if #list == 1 or conf.trust_first_dict:get_value() then
+        self.popup_dict.word = list[1].word -- often useless
         return
     end
     local orig, last = list[1].word, list[#list].word
