@@ -37,7 +37,7 @@ function AnkiConnect.sanitize_url(url)
     if not scheme then
         valid_url = 'http://'..url
     elseif ssl and #ssl > 0 then
-        valid_url = 'https://'..url:sub(scheme_end_idx+1, #url)
+        valid_url = 'http://'..url:sub(scheme_end_idx+1, #url)
     end
     if url ~= valid_url then
         logger.info(("Corrected URL from '%s' to '%s'"):format(url, valid_url))
